@@ -90,7 +90,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
-      <h1 className="text-[20pt] font-[family-name:var(--font-geist-sans)] mb-12">
+      <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
         Port of Mobile Test
       </h1>
       <div className="mb-8 px-6 py-4 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 shadow-md">
