@@ -51,13 +51,23 @@ export default function Home() {
             {indoorOpen && (
               <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
                 {warehouses.map((warehouse) => (
-                  <div 
-                    key={warehouse}
-                    onClick={() => handleWarehouseClick(warehouse)}
-                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                  >
-                    <span>Warehouse {warehouse}</span>
-                  </div>
+                  warehouse === 'A' ? (
+                    <Link 
+                      key={warehouse}
+                      href="/indoorWarehouseA"
+                      className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <span>Warehouse {warehouse}</span>
+                    </Link>
+                  ) : (
+                    <div 
+                      key={warehouse}
+                      onClick={() => handleWarehouseClick(warehouse)}
+                      className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    >
+                      <span>Warehouse {warehouse}</span>
+                    </div>
+                  )
                 ))}
               </div>
             )}
