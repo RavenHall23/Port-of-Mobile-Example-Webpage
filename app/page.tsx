@@ -109,7 +109,7 @@ export default function Home() {
                 <button 
                   key={buttonNumber}
                   onClick={() => handleButtonClick(buttonNumber)}
-                  className={`px-6 py-3 text-white rounded-lg transition-colors ${
+                  className={`px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
                     buttonStatus[buttonNumber] 
                       ? statusColors[buttonStatus[buttonNumber]].color
                       : 'bg-blue-500 hover:bg-blue-600'
