@@ -39,6 +39,50 @@ export default function Home() {
     }));
   };
 
+  const calculateTotalPercentage = () => {
+    if (Object.keys(buttonStatus).length === 0) return 0;
+    
+    let total = 0;
+    let count = 0;
+    Object.values(buttonStatus).forEach(status => {
+      if (status) {
+        total += parseInt(statusColors[status].percentage);
+        count++;
+      }
+    });
+    return count > 0 ? Math.round(total / count) : 0;
+  };
+
+  const calculateIndoorPercentage = () => {
+    if (Object.keys(buttonStatus).length === 0) return 0;
+    
+    let total = 0;
+    let count = 0;
+    [1, 2].forEach(buttonNumber => {
+      const status = buttonStatus[buttonNumber];
+      if (status) {
+        total += parseInt(statusColors[status].percentage);
+        count++;
+      }
+    });
+    return count > 0 ? Math.round(total / count) : 0;
+  };
+
+  const calculateOutdoorPercentage = () => {
+    if (Object.keys(buttonStatus).length === 0) return 0;
+    
+    let total = 0;
+    let count = 0;
+    [3, 4].forEach(buttonNumber => {
+      const status = buttonStatus[buttonNumber];
+      if (status) {
+        total += parseInt(statusColors[status].percentage);
+        count++;
+      }
+    });
+    return count > 0 ? Math.round(total / count) : 0;
+  };
+
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
       <h1 className="text-[20pt] font-[family-name:var(--font-geist-sans)] mb-12">
@@ -47,13 +91,13 @@ export default function Home() {
       <div className="mb-8 px-6 py-4 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 shadow-md">
         <p className="font-[family-name:var(--font-geist-sans)] text-lg">
           <span className="font-semibold">Total Port Utilization: </span>
-          <span className="text-emerald-600 dark:text-emerald-400">85%</span>
+          <span className="text-emerald-600 dark:text-emerald-400">{calculateTotalPercentage()}%</span>
           <span className="mx-4">|</span>
           <span className="font-semibold">Indoor: </span>
-          <span className="text-blue-600 dark:text-blue-400">100%</span>
+          <span className="text-blue-600 dark:text-blue-400">{calculateIndoorPercentage()}%</span>
           <span className="mx-4">|</span>
           <span className="font-semibold">Outdoor: </span>
-          <span className="text-purple-600 dark:text-purple-400">15%</span>
+          <span className="text-purple-600 dark:text-purple-400">{calculateOutdoorPercentage()}%</span>
         </p>
       </div>
       <div className="flex flex-col gap-8 items-center">
