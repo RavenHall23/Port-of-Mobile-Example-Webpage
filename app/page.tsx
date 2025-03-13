@@ -86,26 +86,28 @@ export default function Home() {
         </div>
         
         {selectedWarehouse && (
-          <div className="grid grid-cols-3 gap-4">
-            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              Button 1
-            </button>
-            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              Button 2
-            </button>
-            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              Button 3
-            </button>
-            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              Button 4
-            </button>
-            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              Button 5
-            </button>
-            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              Button 6
-            </button>
-          </div>
+          <Link href={`/warehouse/${selectedWarehouse}`} className="w-full">
+            <div className="grid grid-cols-3 gap-4">
+              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Button 1
+              </button>
+              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Button 2
+              </button>
+              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Button 3
+              </button>
+              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Button 4
+              </button>
+              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Button 5
+              </button>
+              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                Button 6
+              </button>
+            </div>
+          </Link>
         )}
       </div>
     </div>
