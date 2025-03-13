@@ -6,6 +6,7 @@ import Link from "next/link";
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
   const [outdoorOpen, setOutdoorOpen] = useState(false);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
 
   const warehouses = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const statusColors = {
@@ -13,6 +14,12 @@ export default function Home() {
     yellow: { color: 'bg-yellow-500', percentage: '25%' },
     orange: { color: 'bg-orange-500', percentage: '50%' },
     red: { color: 'bg-red-500', percentage: '100%' }
+  };
+
+  const handleWarehouseClick = (warehouse: string) => {
+    setSelectedWarehouse(warehouse);
+    setIndoorOpen(false);
+    setOutdoorOpen(false);
   };
 
   return (
@@ -32,45 +39,74 @@ export default function Home() {
           <span className="text-purple-600 dark:text-purple-400">15%</span>
         </p>
       </div>
-      <div className="flex gap-8">
-        <div className="relative">
-          <button 
-            onClick={() => setIndoorOpen(!indoorOpen)}
-            className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-          >
-            Indoor Warehouse
-          </button>
-          {indoorOpen && (
-            <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-              {warehouses.map((warehouse) => (
-                <Link href={`/warehouse/${warehouse}`} key={warehouse}>
-                  <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+      <div className="flex flex-col gap-8 items-center">
+        <div className="flex gap-8">
+          <div className="relative">
+            <button 
+              onClick={() => setIndoorOpen(!indoorOpen)}
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              Indoor Warehouse
+            </button>
+            {indoorOpen && (
+              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+                {warehouses.map((warehouse) => (
+                  <div 
+                    key={warehouse}
+                    onClick={() => handleWarehouseClick(warehouse)}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                  >
                     <span>Warehouse {warehouse}</span>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="relative">
-          <button 
-            onClick={() => setOutdoorOpen(!outdoorOpen)}
-            className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
-          >
-            Outdoor Warehouse
-          </button>
-          {outdoorOpen && (
-            <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-              {warehouses.map((warehouse) => (
-                <Link href={`/warehouse/${warehouse}`} key={warehouse}>
-                  <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="relative">
+            <button 
+              onClick={() => setOutdoorOpen(!outdoorOpen)}
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            >
+              Outdoor Warehouse
+            </button>
+            {outdoorOpen && (
+              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+                {warehouses.map((warehouse) => (
+                  <div 
+                    key={warehouse}
+                    onClick={() => handleWarehouseClick(warehouse)}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                  >
                     <span>Warehouse {warehouse}</span>
                   </div>
-                </Link>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
+        
+        {selectedWarehouse && (
+          <div className="grid grid-cols-3 gap-4">
+            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Button 1
+            </button>
+            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Button 2
+            </button>
+            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Button 3
+            </button>
+            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Button 4
+            </button>
+            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Button 5
+            </button>
+            <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              Button 6
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
