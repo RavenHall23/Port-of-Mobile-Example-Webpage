@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useState } from "react";
+import Link from "next/link";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -36,12 +37,11 @@ export default function Home() {
           {indoorOpen && (
             <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
               {warehouses.map((warehouse) => (
-                <button
-                  key={warehouse}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Warehouse {warehouse}
-                </button>
+                <Link href={`/warehouse/${warehouse}`} key={warehouse}>
+                  <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <span>Warehouse {warehouse}</span>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
@@ -56,12 +56,11 @@ export default function Home() {
           {outdoorOpen && (
             <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
               {warehouses.map((warehouse) => (
-                <button
-                  key={warehouse}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                >
-                  Warehouse {warehouse}
-                </button>
+                <Link href={`/warehouse/${warehouse}`} key={warehouse}>
+                  <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700">
+                    <span>Warehouse {warehouse}</span>
+                  </div>
+                </Link>
               ))}
             </div>
           )}
