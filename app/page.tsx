@@ -8,7 +8,18 @@ export default function Home() {
   const [outdoorOpen, setOutdoorOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<number | null>(null);
-  const [buttonStatus, setButtonStatus] = useState<{[key: string]: keyof typeof statusColors}>({});
+  const [buttonStatus, setButtonStatus] = useState<{[key: string]: keyof typeof statusColors}>({
+    // Indoor warehouses
+    'A1': 'green', 'A2': 'green', 'A3': 'green', 'A4': 'green',
+    'B1': 'yellow', 'B2': 'yellow', 'B3': 'green', 'B4': 'green',
+    'C1': 'orange', 'C2': 'orange', 'C3': 'yellow', 'C4': 'yellow',
+    'D1': 'red', 'D2': 'red', 'D3': 'orange', 'D4': 'orange',
+    // Outdoor warehouses
+    'E1': 'green', 'E2': 'green', 'E3': 'yellow', 'E4': 'yellow',
+    'F1': 'yellow', 'F2': 'orange', 'F3': 'orange', 'F4': 'red',
+    'G1': 'orange', 'G2': 'orange', 'G3': 'red', 'G4': 'red',
+    'H1': 'red', 'H2': 'red', 'H3': 'red', 'H4': 'red'
+  });
 
   const indoorWarehouses = ['A', 'B', 'C', 'D'];
   const outdoorWarehouses = ['E', 'F', 'G', 'H'];
@@ -23,17 +34,6 @@ export default function Home() {
     setSelectedWarehouse(warehouse);
     setIndoorOpen(false);
     setOutdoorOpen(false);
-    
-    // Initialize status for sections of this warehouse if not already set
-    if (!buttonStatus[`${warehouse}1`]) {
-      const newStatus: {[key: string]: keyof typeof statusColors} = {
-        [`${warehouse}1`]: 'green',
-        [`${warehouse}2`]: 'green',
-        [`${warehouse}3`]: 'green',
-        [`${warehouse}4`]: 'green'
-      };
-      setButtonStatus(prev => ({...prev, ...newStatus}));
-    }
   };
 
   const handleButtonClick = (warehouse: string, sectionNumber: number) => {
