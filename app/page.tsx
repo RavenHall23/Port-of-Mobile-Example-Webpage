@@ -8,6 +8,7 @@ export default function Home() {
   const [outdoorOpen, setOutdoorOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<number | null>(null);
+  const [buttonStatus, setButtonStatus] = useState<{[key: number]: keyof typeof statusColors}>({});
 
   const warehouses = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const statusColors = {
@@ -21,6 +22,21 @@ export default function Home() {
     setSelectedWarehouse(warehouse);
     setIndoorOpen(false);
     setOutdoorOpen(false);
+  };
+
+  const handleButtonClick = (buttonNumber: number) => {
+    setActiveButton(buttonNumber);
+    
+    // Cycle through status colors
+    const statusOrder: (keyof typeof statusColors)[] = ['green', 'yellow', 'orange', 'red'];
+    const currentStatus = buttonStatus[buttonNumber];
+    const currentIndex = currentStatus ? statusOrder.indexOf(currentStatus) : -1;
+    const nextIndex = (currentIndex + 1) % statusOrder.length;
+    
+    setButtonStatus(prev => ({
+      ...prev,
+      [buttonNumber]: statusOrder[nextIndex]
+    }));
   };
 
   return (
@@ -89,30 +105,24 @@ export default function Home() {
         {selectedWarehouse && (
           <div className="w-full">
             <div className="grid grid-cols-2 gap-4">
-              <button 
-                onClick={() => setActiveButton(1)}
-                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 1 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-              >
-                Button 1
-              </button>
-              <button 
-                onClick={() => setActiveButton(2)}
-                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 2 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-              >
-                Button 2
-              </button>
-              <button 
-                onClick={() => setActiveButton(3)}
-                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 3 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-              >
-                Button 3
-              </button>
-              <button 
-                onClick={() => setActiveButton(4)}
-                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 4 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
-              >
-                Button 4
-              </button>
+              {[1, 2, 3, 4].map(buttonNumber => (
+                <button 
+                  key={buttonNumber}
+                  onClick={() => handleButtonClick(buttonNumber)}
+                  className={`px-6 py-3 text-white rounded-lg transition-colors ${
+                    buttonStatus[buttonNumber] 
+                      ? statusColors[buttonStatus[buttonNumber]].color
+                      : 'bg-blue-500 hover:bg-blue-600'
+                  }`}
+                >
+                  Button {buttonNumber}
+                  {buttonStatus[buttonNumber] && (
+                    <span className="ml-2">
+                      ({statusColors[buttonStatus[buttonNumber]].percentage})
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
         )}
