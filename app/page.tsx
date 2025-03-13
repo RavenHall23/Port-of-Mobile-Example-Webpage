@@ -26,7 +26,7 @@ export default function Home() {
     
     // Initialize status for sections of this warehouse if not already set
     if (!buttonStatus[`${warehouse}1`]) {
-      const newStatus = {
+      const newStatus: {[key: string]: keyof typeof statusColors} = {
         [`${warehouse}1`]: 'green',
         [`${warehouse}2`]: 'green',
         [`${warehouse}3`]: 'green',
