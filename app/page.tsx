@@ -11,14 +11,14 @@ export default function Home() {
   const [buttonStatus, setButtonStatus] = useState<{[key: string]: keyof typeof statusColors}>({
     // Indoor warehouses
     'A1': 'green', 'A2': 'green', 'A3': 'green', 'A4': 'green',
-    'B1': 'yellow', 'B2': 'yellow', 'B3': 'green', 'B4': 'green',
-    'C1': 'orange', 'C2': 'orange', 'C3': 'yellow', 'C4': 'yellow',
-    'D1': 'red', 'D2': 'red', 'D3': 'orange', 'D4': 'orange',
+    'B1': 'green', 'B2': 'green', 'B3': 'green', 'B4': 'green',
+    'C1': 'green', 'C2': 'green', 'C3': 'green', 'C4': 'green',
+    'D1': 'green', 'D2': 'green', 'D3': 'green', 'D4': 'green',
     // Outdoor warehouses
-    'E1': 'green', 'E2': 'green', 'E3': 'yellow', 'E4': 'yellow',
-    'F1': 'yellow', 'F2': 'orange', 'F3': 'orange', 'F4': 'red',
-    'G1': 'orange', 'G2': 'orange', 'G3': 'red', 'G4': 'red',
-    'H1': 'red', 'H2': 'red', 'H3': 'red', 'H4': 'red'
+    'E1': 'green', 'E2': 'green', 'E3': 'green', 'E4': 'green',
+    'F1': 'green', 'F2': 'green', 'F3': 'green', 'F4': 'green',
+    'G1': 'green', 'G2': 'green', 'G3': 'green', 'G4': 'green',
+    'H1': 'green', 'H2': 'green', 'H3': 'green', 'H4': 'green'
   });
 
   const indoorWarehouses = ['A', 'B', 'C', 'D'];
