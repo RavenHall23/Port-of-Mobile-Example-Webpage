@@ -13,6 +13,18 @@ export default function Home() {
       <h1 className="text-[20pt] font-[family-name:var(--font-geist-sans)] mb-12">
         Port of Mobile Test
       </h1>
+      <div className="mb-8 px-6 py-4 rounded-xl bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 shadow-md">
+        <p className="font-[family-name:var(--font-geist-sans)] text-lg">
+          <span className="font-semibold">Total Port Utilization: </span>
+          <span className="text-emerald-600 dark:text-emerald-400">85%</span>
+          <span className="mx-4">|</span>
+          <span className="font-semibold">Indoor: </span>
+          <span className="text-blue-600 dark:text-blue-400">100%</span>
+          <span className="mx-4">|</span>
+          <span className="font-semibold">Outdoor: </span>
+          <span className="text-purple-600 dark:text-purple-400">15%</span>
+        </p>
+      </div>
       <div className="flex gap-8">
         <div className="relative">
           <button 
