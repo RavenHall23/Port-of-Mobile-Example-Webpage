@@ -121,6 +121,12 @@ export default function Home() {
                     <span>Warehouse {warehouse}</span>
                   </div>
                 ))}
+                <div 
+                  className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                  onClick={() => {/* TODO: Implement create warehouse */}}
+                >
+                  <span className="text-blue-500">+ Create Warehouse</span>
+                </div>
               </div>
             )}
           </div>
@@ -142,6 +148,12 @@ export default function Home() {
                     <span>Warehouse {warehouse}</span>
                   </div>
                 ))}
+                <div 
+                  className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                  onClick={() => {/* TODO: Implement create warehouse */}}
+                >
+                  <span className="text-purple-500">+ Create Warehouse</span>
+                </div>
               </div>
             )}
           </div>
