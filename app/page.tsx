@@ -7,6 +7,7 @@ export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
   const [outdoorOpen, setOutdoorOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
+  const [activeButton, setActiveButton] = useState<number | null>(null);
 
   const warehouses = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const statusColors = {
@@ -86,28 +87,34 @@ export default function Home() {
         </div>
         
         {selectedWarehouse && (
-          <Link href={`/warehouse/${selectedWarehouse}`} className="w-full">
-            <div className="grid grid-cols-3 gap-4">
-              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+          <div className="w-full">
+            <div className="grid grid-cols-2 gap-4">
+              <button 
+                onClick={() => setActiveButton(1)}
+                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 1 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+              >
                 Button 1
               </button>
-              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <button 
+                onClick={() => setActiveButton(2)}
+                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 2 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+              >
                 Button 2
               </button>
-              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <button 
+                onClick={() => setActiveButton(3)}
+                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 3 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+              >
                 Button 3
               </button>
-              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+              <button 
+                onClick={() => setActiveButton(4)}
+                className={`px-6 py-3 text-white rounded-lg transition-colors ${activeButton === 4 ? 'bg-green-500 hover:bg-green-600' : 'bg-blue-500 hover:bg-blue-600'}`}
+              >
                 Button 4
               </button>
-              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                Button 5
-              </button>
-              <button className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                Button 6
-              </button>
             </div>
-          </Link>
+          </div>
         )}
       </div>
     </div>
