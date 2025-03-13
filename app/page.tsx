@@ -90,6 +90,15 @@ export default function Home() {
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
+      <div className="mb-8">
+        <Image
+          src="/port of mobile logo.png"
+          alt="Port of Mobile Logo"
+          width={300}
+          height={100}
+          priority
+        />
+      </div>
       <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
         Port of Mobile Test
       </h1>
