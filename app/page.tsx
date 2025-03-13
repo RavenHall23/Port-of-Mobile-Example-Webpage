@@ -8,6 +8,12 @@ export default function Home() {
   const [outdoorOpen, setOutdoorOpen] = useState(false);
 
   const warehouses = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const statusColors = {
+    green: { color: 'bg-green-500', percentage: '0%' },
+    yellow: { color: 'bg-yellow-500', percentage: '25%' },
+    orange: { color: 'bg-orange-500', percentage: '50%' },
+    red: { color: 'bg-red-500', percentage: '100%' }
+  };
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
