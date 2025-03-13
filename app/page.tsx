@@ -8,14 +8,10 @@ export default function Home() {
   const [outdoorOpen, setOutdoorOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<number | null>(null);
-  const [buttonStatus, setButtonStatus] = useState<{[key: number]: keyof typeof statusColors}>({
-    1: 'green',
-    2: 'green', 
-    3: 'green',
-    4: 'green'
-  });
+  const [buttonStatus, setButtonStatus] = useState<{[key: string]: keyof typeof statusColors}>({});
 
-  const warehouses = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+  const indoorWarehouses = ['A', 'B', 'C', 'D'];
+  const outdoorWarehouses = ['E', 'F', 'G', 'H'];
   const statusColors = {
     green: { color: 'bg-green-500', percentage: '0%' },
     yellow: { color: 'bg-yellow-500', percentage: '25%' },
@@ -23,82 +19,73 @@ export default function Home() {
     red: { color: 'bg-red-500', percentage: '100%' }
   };
 
-  const handleWarehouseClick = (warehouse: string) => {
+  const handleWarehouseClick = (warehouse: string, isIndoor: boolean) => {
     setSelectedWarehouse(warehouse);
     setIndoorOpen(false);
     setOutdoorOpen(false);
+    
+    // Initialize status for sections of this warehouse if not already set
+    if (!buttonStatus[`${warehouse}1`]) {
+      const newStatus = {
+        [`${warehouse}1`]: 'green',
+        [`${warehouse}2`]: 'green',
+        [`${warehouse}3`]: 'green',
+        [`${warehouse}4`]: 'green'
+      };
+      setButtonStatus(prev => ({...prev, ...newStatus}));
+    }
   };
 
-  const handleButtonClick = (buttonNumber: number) => {
-    setActiveButton(buttonNumber);
+  const handleButtonClick = (warehouse: string, sectionNumber: number) => {
+    const buttonKey = `${warehouse}${sectionNumber}`;
+    setActiveButton(sectionNumber);
     
     // Cycle through status colors
     const statusOrder: (keyof typeof statusColors)[] = ['green', 'yellow', 'orange', 'red'];
-    const currentStatus = buttonStatus[buttonNumber];
+    const currentStatus = buttonStatus[buttonKey];
     const currentIndex = currentStatus ? statusOrder.indexOf(currentStatus) : -1;
     const nextIndex = (currentIndex + 1) % statusOrder.length;
     
     setButtonStatus(prev => ({
       ...prev,
-      [buttonNumber]: statusOrder[nextIndex]
+      [buttonKey]: statusOrder[nextIndex]
     }));
   };
 
-  const calculateTotalPercentage = () => {
-    if (Object.keys(buttonStatus).length === 0) return 0;
+  const calculatePercentage = (statuses: string[]) => {
+    if (statuses.length === 0) return 0;
     
     let total = 0;
     let count = 0;
-    Object.values(buttonStatus).forEach(status => {
+    statuses.forEach(status => {
       if (status) {
-        total += parseInt(statusColors[status].percentage);
+        total += parseInt(statusColors[status as keyof typeof statusColors].percentage);
         count++;
       }
     });
     return count > 0 ? Math.round(total / count) : 0;
+  };
+
+  const calculateTotalPercentage = () => {
+    return calculatePercentage(Object.values(buttonStatus));
   };
 
   const calculateIndoorPercentage = () => {
-    if (Object.keys(buttonStatus).length === 0) return 0;
-    
-    let total = 0;
-    let count = 0;
-    [1, 2].forEach(buttonNumber => {
-      const status = buttonStatus[buttonNumber];
-      if (status) {
-        total += parseInt(statusColors[status].percentage);
-        count++;
-      }
-    });
-    return count > 0 ? Math.round(total / count) : 0;
+    const indoorStatuses = indoorWarehouses.flatMap(warehouse => 
+      [1, 2, 3, 4].map(section => buttonStatus[`${warehouse}${section}`])
+    ).filter(Boolean);
+    return calculatePercentage(indoorStatuses);
   };
 
   const calculateOutdoorPercentage = () => {
-    if (Object.keys(buttonStatus).length === 0) return 0;
-    
-    let total = 0;
-    let count = 0;
-    [3, 4].forEach(buttonNumber => {
-      const status = buttonStatus[buttonNumber];
-      if (status) {
-        total += parseInt(statusColors[status].percentage);
-        count++;
-      }
-    });
-    return count > 0 ? Math.round(total / count) : 0;
+    const outdoorStatuses = outdoorWarehouses.flatMap(warehouse => 
+      [1, 2, 3, 4].map(section => buttonStatus[`${warehouse}${section}`])
+    ).filter(Boolean);
+    return calculatePercentage(outdoorStatuses);
   };
 
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
-      <div className="mb-8">
-        <Image
-          src="/port of mobile logo.png"
-          alt="Port of Mobile Logo"
-          width={300}
-          height={100}
-          priority
-        />
-      </div>
       <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
         Port of Mobile Test
       </h1>
@@ -125,10 +112,10 @@ export default function Home() {
             </button>
             {indoorOpen && (
               <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                {warehouses.map((warehouse) => (
+                {indoorWarehouses.map((warehouse) => (
                   <div 
                     key={warehouse}
-                    onClick={() => handleWarehouseClick(warehouse)}
+                    onClick={() => handleWarehouseClick(warehouse, true)}
                     className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                   >
                     <span>Warehouse {warehouse}</span>
@@ -146,10 +133,10 @@ export default function Home() {
             </button>
             {outdoorOpen && (
               <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                {warehouses.map((warehouse) => (
+                {outdoorWarehouses.map((warehouse) => (
                   <div 
                     key={warehouse}
-                    onClick={() => handleWarehouseClick(warehouse)}
+                    onClick={() => handleWarehouseClick(warehouse, false)}
                     className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                   >
                     <span>Warehouse {warehouse}</span>
@@ -162,25 +149,29 @@ export default function Home() {
         
         {selectedWarehouse && (
           <div className="w-full">
+            <h2 className="text-2xl font-bold mb-4 text-center">Warehouse {selectedWarehouse}</h2>
             <div className="grid grid-cols-2 gap-4">
-              {[1, 2, 3, 4].map(buttonNumber => (
-                <button 
-                  key={buttonNumber}
-                  onClick={() => handleButtonClick(buttonNumber)}
-                  className={`px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
-                    buttonStatus[buttonNumber] 
-                      ? statusColors[buttonStatus[buttonNumber]].color
-                      : 'bg-blue-500 hover:bg-blue-600'
-                  }`}
-                >
-                  Section {String.fromCharCode(64 + buttonNumber)}
-                  {buttonStatus[buttonNumber] && (
-                    <span className="ml-2">
-                      ({statusColors[buttonStatus[buttonNumber]].percentage})
-                    </span>
-                  )}
-                </button>
-              ))}
+              {[1, 2, 3, 4].map(sectionNumber => {
+                const buttonKey = `${selectedWarehouse}${sectionNumber}`;
+                return (
+                  <button 
+                    key={sectionNumber}
+                    onClick={() => handleButtonClick(selectedWarehouse, sectionNumber)}
+                    className={`px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
+                      buttonStatus[buttonKey] 
+                        ? statusColors[buttonStatus[buttonKey]].color
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    }`}
+                  >
+                    Section {String.fromCharCode(64 + sectionNumber)}
+                    {buttonStatus[buttonKey] && (
+                      <span className="ml-2">
+                        ({statusColors[buttonStatus[buttonKey]].percentage})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
