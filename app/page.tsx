@@ -61,7 +61,7 @@ export default function Home() {
           <div className="relative">
             <button 
               onClick={() => setIndoorOpen(!indoorOpen)}
-              className="px-12 py-6 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-[family-name:var(--font-geist-sans)] text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               Indoor Warehouse
             </button>
@@ -82,7 +82,7 @@ export default function Home() {
           <div className="relative">
             <button 
               onClick={() => setOutdoorOpen(!outdoorOpen)}
-              className="px-12 py-6 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-400 text-white font-[family-name:var(--font-geist-sans)] text-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               Outdoor Warehouse
             </button>
