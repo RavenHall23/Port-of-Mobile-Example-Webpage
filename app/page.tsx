@@ -84,6 +84,15 @@ export default function Home() {
     return calculatePercentage(outdoorStatuses);
   };
 
+  const getWarehouseAverageStatus = (warehouse: string) => {
+    const sections = [1, 2, 3, 4].map(section => buttonStatus[`${warehouse}${section}`]);
+    const percentage = calculatePercentage(sections);
+    if (percentage >= 100) return 'red';
+    if (percentage >= 50) return 'orange';
+    if (percentage >= 25) return 'yellow';
+    return 'green';
+  };
+
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
       <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
@@ -116,8 +125,9 @@ export default function Home() {
                   <div 
                     key={warehouse}
                     onClick={() => handleWarehouseClick(warehouse, true)}
-                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                   >
+                    <div className={`w-3 h-3 rounded-full ${statusColors[getWarehouseAverageStatus(warehouse)].color}`} />
                     <span>Warehouse {warehouse}</span>
                   </div>
                 ))}
@@ -143,8 +153,9 @@ export default function Home() {
                   <div 
                     key={warehouse}
                     onClick={() => handleWarehouseClick(warehouse, false)}
-                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
                   >
+                    <div className={`w-3 h-3 rounded-full ${statusColors[getWarehouseAverageStatus(warehouse)].color}`} />
                     <span>Warehouse {warehouse}</span>
                   </div>
                 ))}
