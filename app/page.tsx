@@ -23,7 +23,7 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen p-8 flex flex-col items-center justify-center">
+    <div className="min-h-screen p-8 flex flex-col items-center justify-center">
       <h1 className="text-[20pt] font-[family-name:var(--font-geist-sans)] mb-12">
         Port of Mobile Test
       </h1>
@@ -49,25 +49,15 @@ export default function Home() {
               Indoor Warehouse
             </button>
             {indoorOpen && (
-              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10">
+              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
                 {warehouses.map((warehouse) => (
-                  warehouse === 'A' ? (
-                    <Link 
-                      key={warehouse}
-                      href="/indoorWarehouseA"
-                      className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                    >
-                      <span>Warehouse {warehouse}</span>
-                    </Link>
-                  ) : (
-                    <div 
-                      key={warehouse}
-                      onClick={() => handleWarehouseClick(warehouse)}
-                      className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                    >
-                      <span>Warehouse {warehouse}</span>
-                    </div>
-                  )
+                  <div 
+                    key={warehouse}
+                    onClick={() => handleWarehouseClick(warehouse)}
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+                  >
+                    <span>Warehouse {warehouse}</span>
+                  </div>
                 ))}
               </div>
             )}
@@ -80,7 +70,7 @@ export default function Home() {
               Outdoor Warehouse
             </button>
             {outdoorOpen && (
-              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10">
+              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
                 {warehouses.map((warehouse) => (
                   <div 
                     key={warehouse}
@@ -118,6 +108,6 @@ export default function Home() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
