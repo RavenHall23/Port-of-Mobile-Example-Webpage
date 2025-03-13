@@ -23,7 +23,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen p-8 flex flex-col items-center justify-center">
+    <main className="min-h-screen p-8 flex flex-col items-center justify-center">
       <h1 className="text-[20pt] font-[family-name:var(--font-geist-sans)] mb-12">
         Port of Mobile Test
       </h1>
@@ -49,7 +49,7 @@ export default function Home() {
               Indoor Warehouse
             </button>
             {indoorOpen && (
-              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10">
                 {warehouses.map((warehouse) => (
                   warehouse === 'A' ? (
                     <Link 
@@ -80,7 +80,7 @@ export default function Home() {
               Outdoor Warehouse
             </button>
             {outdoorOpen && (
-              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg z-10">
                 {warehouses.map((warehouse) => (
                   <div 
                     key={warehouse}
@@ -118,6 +118,6 @@ export default function Home() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }
