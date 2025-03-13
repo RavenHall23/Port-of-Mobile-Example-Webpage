@@ -115,7 +115,7 @@ export default function Home() {
                       : 'bg-blue-500 hover:bg-blue-600'
                   }`}
                 >
-                  Button {buttonNumber}
+                  Section {String.fromCharCode(64 + buttonNumber)}
                   {buttonStatus[buttonNumber] && (
                     <span className="ml-2">
                       ({statusColors[buttonStatus[buttonNumber]].percentage})
