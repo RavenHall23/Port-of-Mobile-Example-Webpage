@@ -8,7 +8,12 @@ export default function Home() {
   const [outdoorOpen, setOutdoorOpen] = useState(false);
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [activeButton, setActiveButton] = useState<number | null>(null);
-  const [buttonStatus, setButtonStatus] = useState<{[key: number]: keyof typeof statusColors}>({});
+  const [buttonStatus, setButtonStatus] = useState<{[key: number]: keyof typeof statusColors}>({
+    1: 'green',
+    2: 'green', 
+    3: 'green',
+    4: 'green'
+  });
 
   const warehouses = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
   const statusColors = {
