@@ -1,7 +1,13 @@
 "use client";
 import { useState } from "react";
 import { PieChartComponent } from "@/components/ui/pie-chart";
-import { WarehouseForm } from "./components/WarehouseForm";
+import {
+  calculateIndoorPercentage,
+  calculateOutdoorPercentage,
+  calculateTotalPercentage,
+  getWarehouseAverageStatus,
+  statusColors
+} from "@/lib/warehouse-utils";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -9,8 +15,6 @@ export default function Home() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(
     null
   );
-  const [showWarehouseForm, setShowWarehouseForm] = useState(false);
-  const [warehouseType, setWarehouseType] = useState<'indoor' | 'outdoor' | null>(null);
   const [buttonStatus, setButtonStatus] = useState<{
     [key: string]: keyof typeof statusColors;
   }>({
@@ -31,6 +35,7 @@ export default function Home() {
     D2: "green",
     D3: "green",
     D4: "green",
+    
     // Outdoor warehouses
     E1: "green",
     E2: "green",
@@ -52,12 +57,6 @@ export default function Home() {
 
   const indoorWarehouses = ["A", "B", "C", "D"];
   const outdoorWarehouses = ["E", "F", "G", "H"];
-  const statusColors = {
-    green: { color: "bg-green-500", percentage: "0%" },
-    yellow: { color: "bg-yellow-500", percentage: "25%" },
-    orange: { color: "bg-orange-500", percentage: "50%" },
-    red: { color: "bg-red-500", percentage: "100%" },
-  };
 
   const handleWarehouseClick = (warehouse: string) => {
     setSelectedWarehouse(warehouse);
@@ -67,18 +66,9 @@ export default function Home() {
 
   const handleButtonClick = (warehouse: string, sectionNumber: number) => {
     const buttonKey = `${warehouse}${sectionNumber}`;
-
-    // Cycle through status colors
-    const statusOrder: (keyof typeof statusColors)[] = [
-      "green",
-      "yellow",
-      "orange",
-      "red",
-    ];
+    const statusOrder: (keyof typeof statusColors)[] = ["green", "yellow", "orange", "red"];
     const currentStatus = buttonStatus[buttonKey];
-    const currentIndex = currentStatus
-      ? statusOrder.indexOf(currentStatus)
-      : -1;
+    const currentIndex = currentStatus ? statusOrder.indexOf(currentStatus) : -1;
     const nextIndex = (currentIndex + 1) % statusOrder.length;
 
     setButtonStatus((prev) => ({
@@ -87,60 +77,12 @@ export default function Home() {
     }));
   };
 
-  const calculatePercentage = (statuses: string[]) => {
-    if (statuses.length === 0) return 0;
-
-    let total = 0;
-    let count = 0;
-    statuses.forEach((status) => {
-      if (status) {
-        total += parseInt(
-          statusColors[status as keyof typeof statusColors].percentage
-        );
-        count++;
-      }
-    });
-    return count > 0 ? Math.round(total / count) : 0;
-  };
-
-  const calculateTotalPercentage = () => {
-    return calculatePercentage(Object.values(buttonStatus));
-  };
-
-  const calculateIndoorPercentage = () => {
-    const indoorStatuses = indoorWarehouses
-      .flatMap((warehouse) =>
-        [1, 2, 3, 4].map((section) => buttonStatus[`${warehouse}${section}`])
-      )
-      .filter(Boolean);
-    return calculatePercentage(indoorStatuses);
-  };
-
-  const calculateOutdoorPercentage = () => {
-    const outdoorStatuses = outdoorWarehouses
-      .flatMap((warehouse) =>
-        [1, 2, 3, 4].map((section) => buttonStatus[`${warehouse}${section}`])
-      )
-      .filter(Boolean);
-    return calculatePercentage(outdoorStatuses);
-  };
-
-  const getWarehouseAverageStatus = (warehouse: string) => {
-    const sections = [1, 2, 3, 4].map(
-      (section) => buttonStatus[`${warehouse}${section}`]
-    );
-    const percentage = calculatePercentage(sections);
-    if (percentage >= 100) return "red";
-    if (percentage >= 50) return "orange";
-    if (percentage >= 25) return "yellow";
-    return "green";
-  };
+  // Calculate percentages using the utility functions
+  const totalPercentage = calculateTotalPercentage(buttonStatus);
+  const indoorPercentage = calculateIndoorPercentage(buttonStatus, indoorWarehouses);
+  const outdoorPercentage = calculateOutdoorPercentage(buttonStatus, outdoorWarehouses);
 
   // Prepare data for pie chart
-  const totalPercentage = calculateTotalPercentage();
-  const indoorPercentage = calculateIndoorPercentage();
-  const outdoorPercentage = calculateOutdoorPercentage();
-
   const pieChartData = [
     {
       name: "Indoor",
@@ -162,27 +104,6 @@ export default function Home() {
       return `${value.join(", ")}% Utilization`;
     }
     return `${value}% Utilization`;
-  };
-
-  const handleCreateWarehouse = (type: 'indoor' | 'outdoor') => {
-    setWarehouseType(type);
-    setShowWarehouseForm(true);
-    if (type === 'indoor') {
-      setIndoorOpen(false);
-    } else {
-      setOutdoorOpen(false);
-    }
-  };
-
-  const handleWarehouseSubmit = (data: { name: string; sections: number }) => {
-    // Here you would typically handle the form submission
-    // For now, we'll just log the data
-    console.log('New warehouse:', { ...data, type: warehouseType });
-    
-    // You can add logic here to:
-    // 1. Add the new warehouse to your warehouse list
-    // 2. Update the UI to show the new warehouse
-    // 3. Initialize the sections with default status
   };
 
   return (
@@ -240,7 +161,7 @@ export default function Home() {
                   >
                     <div
                       className={`w-3 h-3 rounded-full ${
-                        statusColors[getWarehouseAverageStatus(warehouse)].color
+                        statusColors[getWarehouseAverageStatus(warehouse, buttonStatus)].color
                       }`}
                     />
                     <span>Warehouse {warehouse}</span>
@@ -248,7 +169,9 @@ export default function Home() {
                 ))}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => handleCreateWarehouse('indoor')}
+                  onClick={() => {
+                    /* TODO: Implement create warehouse */
+                  }}
                 >
                   <span className="text-blue-500">+ Create Warehouse</span>
                 </div>
@@ -272,7 +195,7 @@ export default function Home() {
                   >
                     <div
                       className={`w-3 h-3 rounded-full ${
-                        statusColors[getWarehouseAverageStatus(warehouse)].color
+                        statusColors[getWarehouseAverageStatus(warehouse, buttonStatus)].color
                       }`}
                     />
                     <span>Warehouse {warehouse}</span>
@@ -280,7 +203,9 @@ export default function Home() {
                 ))}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => handleCreateWarehouse('outdoor')}
+                  onClick={() => {
+                    /* TODO: Implement create warehouse */
+                  }}
                 >
                   <span className="text-purple-500">+ Create Warehouse</span>
                 </div>
@@ -322,17 +247,6 @@ export default function Home() {
           </div>
         )}
       </div>
-
-      {/* Warehouse Form Modal */}
-      {showWarehouseForm && warehouseType && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <WarehouseForm
-            type={warehouseType}
-            onClose={() => setShowWarehouseForm(false)}
-            onSubmit={handleWarehouseSubmit}
-          />
-        </div>
-      )}
     </div>
   );
 }
