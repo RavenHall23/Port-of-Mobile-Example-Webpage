@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { PieChartComponent } from "@/components/ui/pie-chart";
+import { WarehouseForm } from "./components/WarehouseForm";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -8,6 +9,8 @@ export default function Home() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(
     null
   );
+  const [showWarehouseForm, setShowWarehouseForm] = useState(false);
+  const [warehouseType, setWarehouseType] = useState<'indoor' | 'outdoor' | null>(null);
   const [buttonStatus, setButtonStatus] = useState<{
     [key: string]: keyof typeof statusColors;
   }>({
@@ -161,6 +164,27 @@ export default function Home() {
     return `${value}% Utilization`;
   };
 
+  const handleCreateWarehouse = (type: 'indoor' | 'outdoor') => {
+    setWarehouseType(type);
+    setShowWarehouseForm(true);
+    if (type === 'indoor') {
+      setIndoorOpen(false);
+    } else {
+      setOutdoorOpen(false);
+    }
+  };
+
+  const handleWarehouseSubmit = (data: { name: string; sections: number }) => {
+    // Here you would typically handle the form submission
+    // For now, we'll just log the data
+    console.log('New warehouse:', { ...data, type: warehouseType });
+    
+    // You can add logic here to:
+    // 1. Add the new warehouse to your warehouse list
+    // 2. Update the UI to show the new warehouse
+    // 3. Initialize the sections with default status
+  };
+
   return (
     <div className="min-h-screen p-8 flex flex-col items-center justify-center">
       <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
@@ -224,9 +248,7 @@ export default function Home() {
                 ))}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => {
-                    /* TODO: Implement create warehouse */
-                  }}
+                  onClick={() => handleCreateWarehouse('indoor')}
                 >
                   <span className="text-blue-500">+ Create Warehouse</span>
                 </div>
@@ -258,9 +280,7 @@ export default function Home() {
                 ))}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => {
-                    /* TODO: Implement create warehouse */
-                  }}
+                  onClick={() => handleCreateWarehouse('outdoor')}
                 >
                   <span className="text-purple-500">+ Create Warehouse</span>
                 </div>
@@ -302,6 +322,17 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Warehouse Form Modal */}
+      {showWarehouseForm && warehouseType && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <WarehouseForm
+            type={warehouseType}
+            onClose={() => setShowWarehouseForm(false)}
+            onSubmit={handleWarehouseSubmit}
+          />
+        </div>
+      )}
     </div>
   );
 }
