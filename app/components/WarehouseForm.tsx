@@ -20,14 +20,36 @@ interface WarehouseFormProps {
 export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
   const [formData, setFormData] = React.useState({
     name: '',
-    sections: 4 // Default to 4 sections
+    sections: '' // Change to empty string initially
   });
+
+  const [error, setError] = React.useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(formData);
+    if (!formData.name.trim()) {
+      setError('Please enter a warehouse name');
+      return;
+    }
+    const sectionsNum = parseInt(formData.sections);
+    if (isNaN(sectionsNum) || sectionsNum < 1 || sectionsNum > 5000) {
+      setError('Please enter a valid number of sections (1-5000)');
+      return;
+    }
+    onSubmit({ name: formData.name, sections: sectionsNum });
     onClose();
   };
+
+  const handleSectionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFormData({ ...formData, sections: value });
+    setError('');
+  };
+
+  const isFormValid = formData.name.trim() !== '' && 
+    !isNaN(parseInt(formData.sections)) && 
+    parseInt(formData.sections) >= 1 && 
+    parseInt(formData.sections) <= 5000;
 
   return (
     <Card className="w-[350px]">
@@ -44,8 +66,12 @@ export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
                 id="name" 
                 placeholder="Enter warehouse name"
                 value={formData.name}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setFormData({ ...formData, name: e.target.value });
+                  setError('');
+                }}
                 required
+                className={`${formData.name.trim() === '' ? 'border-red-500 focus-visible:ring-red-500' : 'border-green-500 focus-visible:ring-green-500'}`}
               />
             </div>
             <div className="flex flex-col space-y-1.5">
@@ -57,21 +83,25 @@ export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
                 max="5000"
                 placeholder="Enter number of sections (1-5000)"
                 value={formData.sections}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  const value = parseInt(e.target.value);
-                  if (value >= 1 && value <= 5000) {
-                    setFormData({ ...formData, sections: value });
-                  }
-                }}
+                onChange={handleSectionsChange}
                 required
+                className={`${
+                  formData.sections === '' || 
+                  isNaN(parseInt(formData.sections)) || 
+                  parseInt(formData.sections) < 1 || 
+                  parseInt(formData.sections) > 5000
+                    ? 'border-red-500 focus-visible:ring-red-500'
+                    : 'border-green-500 focus-visible:ring-green-500'
+                }`}
               />
+              {error && <p className="text-sm text-red-500">{error}</p>}
             </div>
           </div>
         </form>
       </CardContent>
       <CardFooter className="flex justify-between">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit}>Add Warehouse</Button>
+        <Button onClick={handleSubmit} disabled={!isFormValid}>Add Warehouse</Button>
       </CardFooter>
     </Card>
   )
