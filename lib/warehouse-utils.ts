@@ -1,5 +1,3 @@
-import { StatusColors } from "@/types/warehouse";
-
 export const calculatePercentage = (statuses: string[]) => {
   if (statuses.length === 0) return 0;
 
