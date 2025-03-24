@@ -61,9 +61,13 @@ export default function Home() {
   } = useWarehouses();
 
   const handleWarehouseClick = (warehouse: string) => {
-    setSelectedWarehouse(warehouse);
-    setIndoorOpen(false);
-    setOutdoorOpen(false);
+    const allWarehouses = [...indoorWarehouses, ...outdoorWarehouses];
+    const selectedWarehouseData = allWarehouses.find(w => w.letter === warehouse);
+    if (selectedWarehouseData) {
+      setSelectedWarehouse(warehouse);
+      setIndoorOpen(false);
+      setOutdoorOpen(false);
+    }
   };
 
   const handleRemoveWarehouse = async (letter: string) => {
@@ -389,9 +393,9 @@ export default function Home() {
       )}
 
       {selectedWarehouse && (
-        <div className="w-full">
-          <h2 className="text-2xl font-bold mb-4 text-center">
-            Warehouse {selectedWarehouse}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">
+            {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
           </h2>
           <div className="grid grid-cols-2 gap-4">
             {Object.entries(buttonStatus)
