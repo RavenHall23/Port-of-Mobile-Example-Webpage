@@ -19,60 +19,73 @@ export function useWarehouses() {
     fetchWarehouses()
   }, [])
 
+  const sortWarehouses = (warehouses: Warehouse[]) => {
+    return [...warehouses].sort((a, b) => a.name.localeCompare(b.name));
+  };
+
   const fetchWarehouses = async () => {
     try {
-      console.log('Fetching warehouses...')
+      console.log('Starting warehouse fetch...');
+      setLoading(true);
+
       // Fetch warehouses
       const { data: warehouses, error: warehousesError } = await supabase
         .from('warehouses')
         .select('*')
-        .order('letter')
+        .order('created_at', { ascending: true });
 
       if (warehousesError) {
-        console.error('Warehouses fetch error:', warehousesError)
-        throw warehousesError
+        console.error('Error fetching warehouses:', warehousesError);
+        throw warehousesError;
       }
 
-      console.log('Fetched warehouses:', warehouses)
+      console.log('Fetched warehouses:', warehouses);
 
       // Fetch sections
       const { data: sections, error: sectionsError } = await supabase
         .from('warehouse_sections')
-        .select('*')
+        .select('*');
 
       if (sectionsError) {
-        console.error('Sections fetch error:', sectionsError)
-        throw sectionsError
+        console.error('Error fetching sections:', sectionsError);
+        throw sectionsError;
       }
 
-      console.log('Fetched sections:', sections)
+      console.log('Fetched sections:', sections);
 
-      // Process warehouses
-      const indoor = warehouses
-        .filter(w => w.type === 'indoor')
-        .map(w => ({ id: w.id, letter: w.letter, name: w.name }))
-      const outdoor = warehouses
-        .filter(w => w.type === 'outdoor')
-        .map(w => ({ id: w.id, letter: w.letter, name: w.name }))
-      setIndoorWarehouses(indoor)
-      setOutdoorWarehouses(outdoor)
+      // Process warehouses and sections
+      const indoor: Warehouse[] = [];
+      const outdoor: Warehouse[] = [];
+      const status: Record<string, WarehouseStatus> = {};
 
-      // Process sections
-      const status: Record<string, WarehouseStatus> = {}
-      sections.forEach(section => {
-        const warehouse = [...indoor, ...outdoor].find(w => w.id === section.warehouse_id)
-        if (warehouse) {
-          status[`${warehouse.letter}${section.section_number}`] = section.status
+      warehouses.forEach((warehouse) => {
+        const warehouseSections = sections.filter(
+          (section) => section.warehouse_id === warehouse.id
+        );
+
+        warehouseSections.forEach((section) => {
+          status[`${warehouse.letter}${section.section_number}`] = section.status;
+        });
+
+        if (warehouse.type === 'indoor') {
+          indoor.push(warehouse);
+        } else {
+          outdoor.push(warehouse);
         }
-      })
-      setButtonStatus(status)
+      });
+
+      // Sort warehouses alphabetically
+      setIndoorWarehouses(sortWarehouses(indoor));
+      setOutdoorWarehouses(sortWarehouses(outdoor));
+      setButtonStatus(status);
+      console.log('Warehouse fetch completed successfully');
     } catch (error) {
-      console.error('Error fetching warehouses:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
+      console.error('Error in fetchWarehouses:', error);
+      throw error;
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const createWarehouse = async (type: 'indoor' | 'outdoor', name: string, sections: number) => {
     try {
@@ -152,12 +165,12 @@ export function useWarehouses() {
 
       console.log('Sections created successfully');
 
-      // Update local state
+      // Update local state with sorting
       const newWarehouse = { id: warehouse.id, letter: nextLetter, name };
       if (type === 'indoor') {
-        setIndoorWarehouses(prev => [...prev, newWarehouse]);
+        setIndoorWarehouses(prev => sortWarehouses([...prev, newWarehouse]));
       } else {
-        setOutdoorWarehouses(prev => [...prev, newWarehouse]);
+        setOutdoorWarehouses(prev => sortWarehouses([...prev, newWarehouse]));
       }
 
       // Update button status
@@ -204,54 +217,62 @@ export function useWarehouses() {
 
   const removeWarehouse = async (letter: string) => {
     try {
-      console.log('Removing warehouse:', letter)
+      console.log('Starting warehouse removal for letter:', letter);
       
-      // Find the warehouse ID
-      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter)
-      if (!warehouse) {
-        throw new Error('Warehouse not found')
+      // Find the warehouse to remove
+      const allWarehouses = [...indoorWarehouses, ...outdoorWarehouses];
+      const warehouseToRemove = allWarehouses.find(w => w.letter === letter);
+      
+      if (!warehouseToRemove) {
+        console.error('Warehouse not found:', letter);
+        return false;
       }
 
-      // Delete all sections first (due to foreign key constraint)
+      console.log('Found warehouse to remove:', warehouseToRemove);
+
+      // Delete sections first
       const { error: sectionsError } = await supabase
         .from('warehouse_sections')
         .delete()
-        .eq('warehouse_id', warehouse.id)
+        .eq('warehouse_id', warehouseToRemove.id);
 
       if (sectionsError) {
-        console.error('Error deleting sections:', sectionsError)
-        throw sectionsError
+        console.error('Error deleting sections:', sectionsError);
+        throw sectionsError;
       }
 
-      // Delete the warehouse
+      // Delete warehouse
       const { error: warehouseError } = await supabase
         .from('warehouses')
         .delete()
-        .eq('id', warehouse.id)
+        .eq('id', warehouseToRemove.id);
 
       if (warehouseError) {
-        console.error('Error deleting warehouse:', warehouseError)
-        throw warehouseError
+        console.error('Error deleting warehouse:', warehouseError);
+        throw warehouseError;
       }
 
-      // Update local state
-      setIndoorWarehouses(prev => prev.filter(w => w.letter !== letter))
-      setOutdoorWarehouses(prev => prev.filter(w => w.letter !== letter))
-      
-      // Remove section statuses
-      const newButtonStatus = { ...buttonStatus }
-      Object.keys(newButtonStatus).forEach(key => {
-        if (key.startsWith(letter)) {
-          delete newButtonStatus[key]
-        }
-      })
-      setButtonStatus(newButtonStatus)
+      // Update local state with sorting
+      if (warehouseToRemove.type === 'indoor') {
+        setIndoorWarehouses(prev => sortWarehouses(prev.filter(w => w.letter !== letter)));
+      } else {
+        setOutdoorWarehouses(prev => sortWarehouses(prev.filter(w => w.letter !== letter)));
+      }
 
-      return true
+      // Update button status
+      const newStatus = { ...buttonStatus };
+      Object.keys(newStatus).forEach(key => {
+        if (key.startsWith(letter)) {
+          delete newStatus[key];
+        }
+      });
+      setButtonStatus(newStatus);
+
+      console.log('Warehouse removal completed successfully');
+      return true;
     } catch (error) {
-      console.error('Error removing warehouse:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-      return false
+      console.error('Error removing warehouse:', error);
+      return false;
     }
   }
 
