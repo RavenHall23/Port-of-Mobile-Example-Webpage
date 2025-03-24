@@ -83,20 +83,21 @@ export function useWarehouses() {
         throw new Error('Invalid input: Name is required and sections must be between 1 and 5000');
       }
 
-      // Check for duplicate names across all warehouses
-      const allWarehouses = [...indoorWarehouses, ...outdoorWarehouses];
-      const isDuplicateName = allWarehouses.some(warehouse => 
+      // Check for duplicate names within the same category
+      const warehousesToCheck = type === 'indoor' ? indoorWarehouses : outdoorWarehouses;
+      const isDuplicateName = warehousesToCheck.some(warehouse => 
         warehouse.name.toLowerCase() === name.toLowerCase()
       );
 
       if (isDuplicateName) {
-        const existingWarehouse = allWarehouses.find(w => 
+        const existingWarehouse = warehousesToCheck.find(w => 
           w.name.toLowerCase() === name.toLowerCase()
         );
-        throw new Error(`A warehouse with the name "${name}" already exists. Please choose a different name.`);
+        throw new Error(`A ${type} warehouse with the name "${name}" already exists. Please choose a different name.`);
       }
 
       // Get the next available letter
+      const allWarehouses = [...indoorWarehouses, ...outdoorWarehouses];
       const existingLetters = allWarehouses.map(w => w.letter);
       const nextLetter = String.fromCharCode(
         Math.max(...existingLetters.map(l => l.charCodeAt(0)), 64) + 1
