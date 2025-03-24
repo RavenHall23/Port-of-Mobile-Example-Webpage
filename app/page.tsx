@@ -225,7 +225,7 @@ export default function Home() {
               Indoor Warehouse
             </button>
             {indoorOpen && (
-              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+              <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-fit min-w-[200px]">
                 {indoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
                   return (
@@ -239,17 +239,17 @@ export default function Home() {
                   )
                 })}
                 <div
-                  className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                  className="flex items-center justify-between px-4 py-2 mt-2 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 cursor-pointer border-t border-gray-200 dark:border-gray-700 rounded-lg transition-all duration-200"
                   onClick={() => setShowIndoorForm(true)}
                 >
-                  <span className="text-blue-500">+ Create Warehouse</span>
+                  <span className="text-blue-500 dark:text-blue-400">+ Create Warehouse</span>
                 </div>
                 {indoorWarehouses.length > 0 && (
                   <div
-                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 cursor-pointer border-t border-gray-200 dark:border-gray-700 rounded-lg transition-all duration-200"
                     onClick={() => setShowDeleteConfirm({ type: 'indoor' })}
                   >
-                    <span className="text-red-500">- Remove Warehouse</span>
+                    <span className="text-red-500 dark:text-red-400">- Remove Warehouse</span>
                   </div>
                 )}
               </div>
@@ -264,7 +264,7 @@ export default function Home() {
               Outdoor Warehouse
             </button>
             {outdoorOpen && (
-              <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+              <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-fit min-w-[200px]">
                 {outdoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
                   return (
@@ -278,17 +278,17 @@ export default function Home() {
                   )
                 })}
                 <div
-                  className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                  className="flex items-center justify-between px-4 py-2 mt-2 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 cursor-pointer border-t border-gray-200 dark:border-gray-700 rounded-lg transition-all duration-200"
                   onClick={() => setShowOutdoorForm(true)}
                 >
-                  <span className="text-purple-500">+ Create Warehouse</span>
+                  <span className="text-purple-500 dark:text-purple-400">+ Create Warehouse</span>
                 </div>
                 {outdoorWarehouses.length > 0 && (
                   <div
-                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                    className="flex items-center justify-between px-4 py-2 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 cursor-pointer border-t border-gray-200 dark:border-gray-700 rounded-lg transition-all duration-200"
                     onClick={() => setShowDeleteConfirm({ type: 'outdoor' })}
                   >
-                    <span className="text-red-500">- Remove Warehouse</span>
+                    <span className="text-red-500 dark:text-red-400">- Remove Warehouse</span>
                   </div>
                 )}
               </div>
