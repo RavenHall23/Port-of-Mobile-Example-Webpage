@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { useSwipeable } from "react-swipeable";
 import { PieChartComponent } from "@/components/ui/pie-chart";
 import { WarehouseForm } from "@/components/WarehouseForm";
 import { useWarehouses } from "@/hooks/useWarehouses";
@@ -10,10 +11,33 @@ import {
   getWarehouseAverageStatus,
   statusColors
 } from "@/utils/warehouse-utils";
+import type { WarehouseStatus } from '@/types/database';
 
 interface Warehouse {
   letter: string;
   name: string;
+}
+
+interface WarehouseItemProps {
+  warehouse: Warehouse;
+  onSelect: (letter: string) => void;
+  buttonStatus: Record<string, WarehouseStatus>;
+}
+
+function WarehouseItem({ warehouse, onSelect, buttonStatus }: WarehouseItemProps) {
+  return (
+    <div
+      onClick={() => onSelect(warehouse.letter)}
+      className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
+    >
+      <div
+        className={`w-3 h-3 rounded-full ${
+          statusColors[getWarehouseAverageStatus(warehouse.letter, buttonStatus)].color
+        }`}
+      />
+      <span>{warehouse.name}</span>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -22,6 +46,8 @@ export default function Home() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [showIndoorForm, setShowIndoorForm] = useState(false);
   const [showOutdoorForm, setShowOutdoorForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
+  const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
   
   const {
     indoorWarehouses,
@@ -29,13 +55,52 @@ export default function Home() {
     buttonStatus,
     loading,
     createWarehouse,
-    updateSectionStatus
+    updateSectionStatus,
+    removeWarehouse
   } = useWarehouses();
 
   const handleWarehouseClick = (warehouse: string) => {
     setSelectedWarehouse(warehouse);
     setIndoorOpen(false);
     setOutdoorOpen(false);
+  };
+
+  const handleRemoveWarehouse = async (letter: string) => {
+    const success = await removeWarehouse(letter);
+    if (success) {
+      if (selectedWarehouse === letter) {
+        setSelectedWarehouse(null);
+      }
+      setWarehousesToDelete(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(letter);
+        return newSet;
+      });
+    }
+  };
+
+  const handleRemoveSelectedWarehouses = async () => {
+    setShowFinalConfirm(true);
+  };
+
+  const handleFinalConfirm = async () => {
+    const promises = Array.from(warehousesToDelete).map(letter => handleRemoveWarehouse(letter));
+    await Promise.all(promises);
+    setShowDeleteConfirm({ type: null });
+    setWarehousesToDelete(new Set());
+    setShowFinalConfirm(false);
+  };
+
+  const toggleWarehouseSelection = (letter: string) => {
+    setWarehousesToDelete(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(letter)) {
+        newSet.delete(letter);
+      } else {
+        newSet.add(letter);
+      }
+      return newSet;
+    });
   };
 
   const handleButtonClick = async (warehouse: string, sectionNumber: number) => {
@@ -139,18 +204,12 @@ export default function Home() {
           {indoorOpen && (
             <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
               {indoorWarehouses.map((warehouse) => (
-                <div
+                <WarehouseItem
                   key={warehouse.letter}
-                  onClick={() => handleWarehouseClick(warehouse.letter)}
-                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                >
-                  <div
-                    className={`w-3 h-3 rounded-full ${
-                      statusColors[getWarehouseAverageStatus(warehouse.letter, buttonStatus)].color
-                    }`}
-                  />
-                  <span>{warehouse.name} (Warehouse {warehouse.letter})</span>
-                </div>
+                  warehouse={warehouse}
+                  onSelect={handleWarehouseClick}
+                  buttonStatus={buttonStatus}
+                />
               ))}
               <div
                 className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
@@ -158,6 +217,14 @@ export default function Home() {
               >
                 <span className="text-blue-500">+ Create Warehouse</span>
               </div>
+              {indoorWarehouses.length > 0 && (
+                <div
+                  className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                  onClick={() => setShowDeleteConfirm({ type: 'indoor' })}
+                >
+                  <span className="text-red-500">- Remove Warehouse</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -172,18 +239,12 @@ export default function Home() {
           {outdoorOpen && (
             <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
               {outdoorWarehouses.map((warehouse) => (
-                <div
+                <WarehouseItem
                   key={warehouse.letter}
-                  onClick={() => handleWarehouseClick(warehouse.letter)}
-                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-                >
-                  <div
-                    className={`w-3 h-3 rounded-full ${
-                      statusColors[getWarehouseAverageStatus(warehouse.letter, buttonStatus)].color
-                    }`}
-                  />
-                  <span>{warehouse.name} (Warehouse {warehouse.letter})</span>
-                </div>
+                  warehouse={warehouse}
+                  onSelect={handleWarehouseClick}
+                  buttonStatus={buttonStatus}
+                />
               ))}
               <div
                 className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
@@ -191,6 +252,14 @@ export default function Home() {
               >
                 <span className="text-purple-500">+ Create Warehouse</span>
               </div>
+              {outdoorWarehouses.length > 0 && (
+                <div
+                  className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
+                  onClick={() => setShowDeleteConfirm({ type: 'outdoor' })}
+                >
+                  <span className="text-red-500">- Remove Warehouse</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -214,6 +283,66 @@ export default function Home() {
             onClose={() => setShowOutdoorForm(false)}
             onSubmit={(data) => handleCreateWarehouse('outdoor', data)}
           />
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm.type && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Remove Warehouses</h3>
+            <div className="mb-6 max-h-96 overflow-y-auto">
+              <div className="space-y-2">
+                {showDeleteConfirm.type === 'indoor' 
+                  ? indoorWarehouses.map((warehouse) => (
+                      <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={warehousesToDelete.has(warehouse.letter)}
+                          onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                          className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                        />
+                        <span>{warehouse.name}</span>
+                      </label>
+                    ))
+                  : outdoorWarehouses.map((warehouse) => (
+                      <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={warehousesToDelete.has(warehouse.letter)}
+                          onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                          className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                        />
+                        <span>{warehouse.name}</span>
+                      </label>
+                    ))
+                }
+              </div>
+            </div>
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                {warehousesToDelete.size} warehouse{warehousesToDelete.size !== 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm({ type: null });
+                  setWarehousesToDelete(new Set());
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRemoveSelectedWarehouses}
+                disabled={warehousesToDelete.size === 0}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Remove Selected
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

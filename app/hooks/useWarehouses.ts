@@ -194,12 +194,66 @@ export function useWarehouses() {
     }
   }
 
+  const removeWarehouse = async (letter: string) => {
+    try {
+      console.log('Removing warehouse:', letter)
+      
+      // Find the warehouse ID
+      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter)
+      if (!warehouse) {
+        throw new Error('Warehouse not found')
+      }
+
+      // Delete all sections first (due to foreign key constraint)
+      const { error: sectionsError } = await supabase
+        .from('warehouse_sections')
+        .delete()
+        .eq('warehouse_id', warehouse.id)
+
+      if (sectionsError) {
+        console.error('Error deleting sections:', sectionsError)
+        throw sectionsError
+      }
+
+      // Delete the warehouse
+      const { error: warehouseError } = await supabase
+        .from('warehouses')
+        .delete()
+        .eq('id', warehouse.id)
+
+      if (warehouseError) {
+        console.error('Error deleting warehouse:', warehouseError)
+        throw warehouseError
+      }
+
+      // Update local state
+      setIndoorWarehouses(prev => prev.filter(w => w.letter !== letter))
+      setOutdoorWarehouses(prev => prev.filter(w => w.letter !== letter))
+      
+      // Remove section statuses
+      const newButtonStatus = { ...buttonStatus }
+      Object.keys(newButtonStatus).forEach(key => {
+        if (key.startsWith(letter)) {
+          delete newButtonStatus[key]
+        }
+      })
+      setButtonStatus(newButtonStatus)
+
+      return true
+    } catch (error) {
+      console.error('Error removing warehouse:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+      return false
+    }
+  }
+
   return {
     indoorWarehouses,
     outdoorWarehouses,
     buttonStatus,
     loading,
     createWarehouse,
-    updateSectionStatus
+    updateSectionStatus,
+    removeWarehouse
   }
 } 

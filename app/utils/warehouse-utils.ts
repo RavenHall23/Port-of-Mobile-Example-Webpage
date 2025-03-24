@@ -29,8 +29,8 @@ export const calculateTotalPercentage = (buttonStatus: Record<string, WarehouseS
   }, {} as Record<WarehouseStatus, number>)
 
   const totalPercentage = Object.entries(statusCounts).reduce((sum, [status, count]) => {
-    const percentage = statusColors[status as WarehouseStatus].percentage
-    return sum + (parseInt(percentage) * count)
+    const percentage = parseInt(statusColors[status as WarehouseStatus].percentage)
+    return sum + (percentage * count)
   }, 0)
 
   return Math.round(totalPercentage / totalSections)
@@ -44,8 +44,8 @@ export const calculateIndoorPercentage = (buttonStatus: Record<string, Warehouse
   if (indoorSections.length === 0) return 0
 
   const indoorPercentage = indoorSections.reduce((sum, [_, status]) => {
-    const percentage = statusColors[status].percentage
-    return sum + parseInt(percentage)
+    const percentage = parseInt(statusColors[status].percentage)
+    return sum + percentage
   }, 0)
 
   return Math.round(indoorPercentage / indoorSections.length)
@@ -59,8 +59,8 @@ export const calculateOutdoorPercentage = (buttonStatus: Record<string, Warehous
   if (outdoorSections.length === 0) return 0
 
   const outdoorPercentage = outdoorSections.reduce((sum, [_, status]) => {
-    const percentage = statusColors[status].percentage
-    return sum + parseInt(percentage)
+    const percentage = parseInt(statusColors[status].percentage)
+    return sum + percentage
   }, 0)
 
   return Math.round(outdoorPercentage / outdoorSections.length)
