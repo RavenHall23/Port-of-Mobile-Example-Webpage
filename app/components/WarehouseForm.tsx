@@ -20,7 +20,7 @@ interface WarehouseFormProps {
 
 export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
   const [name, setName] = useState("");
-  const [sections, setSections] = useState(1);
+  const [sections, setSections] = useState("1");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,7 +30,11 @@ export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
     setIsSubmitting(true);
 
     try {
-      await onSubmit({ name, sections });
+      const sectionsNumber = parseInt(sections);
+      if (isNaN(sectionsNumber) || sectionsNumber < 1 || sectionsNumber > 5000) {
+        throw new Error('Number of sections must be between 1 and 5000');
+      }
+      await onSubmit({ name, sections: sectionsNumber });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while creating the warehouse');
     } finally {
@@ -65,14 +69,17 @@ export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
               <Label htmlFor="sections">Number of Sections</Label>
               <Input 
                 id="sections" 
-                type="number"
-                min="1"
-                max="5000"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="Enter number of sections (1-5000)"
                 value={sections}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setSections(Math.max(1, parseInt(e.target.value) || 1));
-                  setError('');
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 5000)) {
+                    setSections(value);
+                    setError('');
+                  }
                 }}
                 required
                 className={`${error ? 'border-red-500 focus-visible:ring-red-500' : 'border-green-500 focus-visible:ring-green-500'}`}
