@@ -128,6 +128,26 @@ export default function Home() {
     return `${value}% Utilization`;
   };
 
+  const calculateUtilization = (letter: string) => {
+    type UtilizationValue = 0 | 50 | 75 | 100;
+    const sections = Object.entries(buttonStatus)
+      .filter(([key]) => key.startsWith(letter))
+      .map(([, status]) => {
+        switch (status) {
+          case 'green': return 100 as UtilizationValue
+          case 'yellow': return 75 as UtilizationValue
+          case 'orange': return 50 as UtilizationValue
+          case 'red': return 0 as UtilizationValue
+          default: return 0 as UtilizationValue
+        }
+      })
+
+    if (sections.length === 0) return 0
+    const total = sections.reduce((sum: UtilizationValue, percentage: UtilizationValue) => 
+      (sum + percentage) as UtilizationValue, 0 as UtilizationValue)
+    return Math.round(total / sections.length)
+  }
+
   if (loading) {
     return <div className="min-h-screen p-8 flex items-center justify-center">
       <div className="text-xl">Loading warehouses...</div>
@@ -206,14 +226,18 @@ export default function Home() {
             </button>
             {indoorOpen && (
               <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                {indoorWarehouses.map((warehouse) => (
-                  <WarehouseItem
-                    key={warehouse.letter}
-                    warehouse={warehouse}
-                    onSelect={handleWarehouseClick}
-                    buttonStatus={buttonStatus}
-                  />
-                ))}
+                {indoorWarehouses.map((warehouse) => {
+                  const utilization = calculateUtilization(warehouse.letter)
+                  return (
+                    <WarehouseItem
+                      key={warehouse.letter}
+                      warehouse={warehouse}
+                      onClick={() => handleWarehouseClick(warehouse.letter)}
+                      isSelected={selectedWarehouse === warehouse.letter}
+                      utilization={utilization}
+                    />
+                  )
+                })}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
                   onClick={() => setShowIndoorForm(true)}
@@ -241,14 +265,18 @@ export default function Home() {
             </button>
             {outdoorOpen && (
               <div className="absolute mt-2 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg">
-                {outdoorWarehouses.map((warehouse) => (
-                  <WarehouseItem
-                    key={warehouse.letter}
-                    warehouse={warehouse}
-                    onSelect={handleWarehouseClick}
-                    buttonStatus={buttonStatus}
-                  />
-                ))}
+                {outdoorWarehouses.map((warehouse) => {
+                  const utilization = calculateUtilization(warehouse.letter)
+                  return (
+                    <WarehouseItem
+                      key={warehouse.letter}
+                      warehouse={warehouse}
+                      onClick={() => handleWarehouseClick(warehouse.letter)}
+                      isSelected={selectedWarehouse === warehouse.letter}
+                      utilization={utilization}
+                    />
+                  )
+                })}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
                   onClick={() => setShowOutdoorForm(true)}
