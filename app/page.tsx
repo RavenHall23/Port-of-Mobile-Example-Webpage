@@ -47,6 +47,7 @@ export default function Home() {
   const [showIndoorForm, setShowIndoorForm] = useState(false);
   const [showOutdoorForm, setShowOutdoorForm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
   
   const {
@@ -80,15 +81,15 @@ export default function Home() {
   };
 
   const handleRemoveSelectedWarehouses = async () => {
+    setShowDeleteConfirm({ type: null });
     setShowFinalConfirm(true);
   };
 
   const handleFinalConfirm = async () => {
     const promises = Array.from(warehousesToDelete).map(letter => handleRemoveWarehouse(letter));
     await Promise.all(promises);
-    setShowDeleteConfirm({ type: null });
-    setWarehousesToDelete(new Set());
     setShowFinalConfirm(false);
+    setWarehousesToDelete(new Set());
   };
 
   const toggleWarehouseSelection = (letter: string) => {
@@ -290,7 +291,7 @@ export default function Home() {
       {showDeleteConfirm.type && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-            <h3 className="text-xl font-bold mb-4">Remove Warehouses</h3>
+            <h3 className="text-xl font-bold mb-4">Select Warehouses to Remove</h3>
             <div className="mb-6 max-h-96 overflow-y-auto">
               <div className="space-y-2">
                 {showDeleteConfirm.type === 'indoor' 
@@ -339,7 +340,48 @@ export default function Home() {
                 disabled={warehousesToDelete.size === 0}
                 className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Remove Selected
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Final Confirmation Modal */}
+      {showFinalConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+            <h3 className="text-xl font-bold mb-4">Confirm Warehouse Removal</h3>
+            <div className="mb-6">
+              <p className="text-gray-700 dark:text-gray-300 mb-4">
+                Are you sure you want to remove the following warehouse{warehousesToDelete.size !== 1 ? 's' : ''}?
+              </p>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {Array.from(warehousesToDelete).map((letter) => {
+                  const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
+                  return (
+                    <div key={letter} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                      {warehouse?.name}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => {
+                  setShowFinalConfirm(false);
+                  setWarehousesToDelete(new Set());
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleFinalConfirm}
+                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+              >
+                Remove Warehouses
               </button>
             </div>
           </div>
