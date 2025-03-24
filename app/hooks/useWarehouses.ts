@@ -5,12 +5,6 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import type { UserOptions } from 'jspdf-autotable'
-
-// Extend jsPDF with autoTable
-interface jsPDFWithAutoTable extends jsPDF {
-  autoTable: (options: UserOptions) => jsPDF;
-}
 
 export function useWarehouses() {
   const [indoorWarehouses, setIndoorWarehouses] = useState<Warehouse[]>([])
@@ -322,7 +316,7 @@ export function useWarehouses() {
       const sections = warehouses.flatMap(warehouse => 
         Object.entries(buttonStatus)
           .filter(([key]) => key.startsWith(warehouse.letter))
-          .map(([key, status]) => ({
+          .map(([, status]) => ({
             status,
             percentage: calculateSectionPercentage(status)
           }))
@@ -387,9 +381,9 @@ export function useWarehouses() {
     }).flat()
 
     if (outdoorData.length > 0) {
-      doc.text('Outdoor Warehouses', 14, (doc as any).lastAutoTable.finalY + 15)
+      doc.text('Outdoor Warehouses', 14, (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15)
       autoTable(doc, {
-        startY: (doc as any).lastAutoTable.finalY + 20,
+        startY: (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 20,
         head: [['Name', 'Type', 'Section', 'Status']],
         body: outdoorData,
         theme: 'grid',
@@ -407,7 +401,7 @@ export function useWarehouses() {
                     outdoorStats.averagePercentage * outdoorStats.totalSections) / totalSections)
       : 0
 
-    const summaryY = (doc as any).lastAutoTable.finalY + 15
+    const summaryY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15
     doc.text('Summary Statistics', 14, summaryY)
     doc.setFontSize(9)
     doc.text(`Indoor Warehouses: ${indoorStats.totalSections} sections, ${indoorStats.averagePercentage}% average availability`, 14, summaryY + 7)
