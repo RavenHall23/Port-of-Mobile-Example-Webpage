@@ -351,13 +351,15 @@ export function useWarehouses() {
 
   const downloadWarehouseData = () => {
     const doc = new jsPDF()
-    const date = new Date().toLocaleDateString()
+    const date = new Date()
+    const formattedDate = date.toLocaleDateString()
+    const formattedTime = date.toLocaleTimeString()
     
     // Title
     doc.setFontSize(20)
     doc.text('Warehouse Status Report', 14, 15)
     doc.setFontSize(12)
-    doc.text(`Generated on: ${date}`, 14, 25)
+    doc.text(`Generated on: ${formattedDate} at ${formattedTime}`, 14, 25)
     doc.setFontSize(10)
 
     // Calculate percentages for each section
@@ -477,7 +479,7 @@ export function useWarehouses() {
     doc.text('Red (0%): Not Available', 14, legendY + 28)
 
     // Download the PDF
-    doc.save(`warehouse-status-${date.replace(/\//g, '-')}.pdf`)
+    doc.save(`warehouse-status-${date.toISOString().replace(/[:.]/g, '-')}.pdf`)
   }
 
   const addSections = async (warehouseLetter: string, numberOfSections: number) => {
