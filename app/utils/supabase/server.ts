@@ -1,10 +1,12 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { Database } from '@/types/database'
+import { CookieOptions } from '@supabase/ssr'
 
-export const createClient = () => {
-  const cookieStore = cookies()
+export async function createClient() {
+  const cookieStore = await cookies()
 
-  return createServerClient(
+  return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -12,18 +14,36 @@ export const createClient = () => {
         get(name: string) {
           return cookieStore.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value, ...options })
-          } catch (error) {
-            // Handle cookie errors
+            cookieStore.set({ 
+              name, 
+              value, 
+              path: options.path,
+              maxAge: options.maxAge,
+              domain: options.domain,
+              secure: options.secure,
+              httpOnly: options.httpOnly,
+              sameSite: options.sameSite
+            })
+          } catch {
+            // Handle cookie setting error silently
           }
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: CookieOptions) {
           try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch (error) {
-            // Handle cookie errors
+            cookieStore.set({ 
+              name, 
+              value: '', 
+              path: options.path,
+              maxAge: 0,
+              domain: options.domain,
+              secure: options.secure,
+              httpOnly: options.httpOnly,
+              sameSite: options.sameSite
+            })
+          } catch {
+            // Handle cookie removal error silently
           }
         },
       },

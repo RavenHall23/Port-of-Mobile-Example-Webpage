@@ -1,35 +1,36 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import type { Warehouse, WarehouseSection, WarehouseType, WarehouseStatus } from '@/types/database'
-
-interface WarehouseWithName {
-  id: string;
-  letter: string;
-  name: string;
-}
+import type { Warehouse, WarehouseStatus, WarehouseSection, WarehouseType } from '@/types/database'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from '@/types/database'
 
 export function useWarehouses() {
   const [indoorWarehouses, setIndoorWarehouses] = useState<Warehouse[]>([])
   const [outdoorWarehouses, setOutdoorWarehouses] = useState<Warehouse[]>([])
   const [buttonStatus, setButtonStatus] = useState<Record<string, WarehouseStatus>>({})
   const [loading, setLoading] = useState(true)
-  const supabase = createClient()
+  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null)
 
   useEffect(() => {
-    fetchWarehouses()
-  }, [])
+    const initSupabase = async () => {
+      const client = await createClient()
+      setSupabase(client)
+      await fetchWarehouses(client)
+    }
+    initSupabase()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sortWarehouses = (warehouses: Warehouse[]) => {
     return [...warehouses].sort((a, b) => a.name.localeCompare(b.name));
   };
 
-  const fetchWarehouses = async () => {
+  const fetchWarehouses = async (client: SupabaseClient<Database>) => {
     try {
       console.log('Starting warehouse fetch...');
       setLoading(true);
 
       // Fetch warehouses
-      const { data: warehouses, error: warehousesError } = await supabase
+      const { data: warehouses, error: warehousesError } = await client
         .from('warehouses')
         .select('*')
         .order('created_at', { ascending: true });
@@ -42,7 +43,7 @@ export function useWarehouses() {
       console.log('Fetched warehouses:', warehouses);
 
       // Fetch sections
-      const { data: sections, error: sectionsError } = await supabase
+      const { data: sections, error: sectionsError } = await client
         .from('warehouse_sections')
         .select('*');
 
@@ -58,12 +59,12 @@ export function useWarehouses() {
       const outdoor: Warehouse[] = [];
       const status: Record<string, WarehouseStatus> = {};
 
-      warehouses.forEach((warehouse) => {
+      warehouses.forEach((warehouse: Warehouse) => {
         const warehouseSections = sections.filter(
-          (section) => section.warehouse_id === warehouse.id
+          (section: WarehouseSection) => section.warehouse_id === warehouse.id
         );
 
-        warehouseSections.forEach((section) => {
+        warehouseSections.forEach((section: WarehouseSection) => {
           status[`${warehouse.letter}${section.section_number}`] = section.status;
         });
 
@@ -87,7 +88,9 @@ export function useWarehouses() {
     }
   };
 
-  const createWarehouse = async (type: 'indoor' | 'outdoor', name: string, sections: number) => {
+  const createWarehouse = async (type: WarehouseType, name: string, sections: number) => {
+    if (!supabase) return false;
+    
     try {
       console.log('Starting warehouse creation with:', { type, name, sections });
       
@@ -103,9 +106,6 @@ export function useWarehouses() {
       );
 
       if (isDuplicateName) {
-        const existingWarehouse = warehousesToCheck.find(w => 
-          w.name.toLowerCase() === name.toLowerCase()
-        );
         throw new Error(`A ${type} warehouse with the name "${name}" already exists. Please choose a different name.`);
       }
 
@@ -166,7 +166,14 @@ export function useWarehouses() {
       console.log('Sections created successfully');
 
       // Update local state with sorting
-      const newWarehouse = { id: warehouse.id, letter: nextLetter, name };
+      const newWarehouse = { 
+        id: warehouse.id, 
+        letter: nextLetter, 
+        name,
+        type,
+        created_at: warehouse.created_at,
+        updated_at: warehouse.updated_at
+      };
       if (type === 'indoor') {
         setIndoorWarehouses(prev => sortWarehouses([...prev, newWarehouse]));
       } else {
@@ -190,6 +197,8 @@ export function useWarehouses() {
   };
 
   const updateSectionStatus = async (warehouseLetter: string, sectionNumber: number, status: WarehouseStatus) => {
+    if (!supabase) return false;
+    
     try {
       // Find the warehouse by letter
       const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === warehouseLetter)
@@ -216,6 +225,8 @@ export function useWarehouses() {
   }
 
   const removeWarehouse = async (letter: string) => {
+    if (!supabase) return false;
+    
     try {
       console.log('Starting warehouse removal for letter:', letter);
       

@@ -1,46 +1,13 @@
 "use client";
-import { useState, useRef } from "react";
-import { useSwipeable } from "react-swipeable";
-import { PieChartComponent } from "@/components/ui/pie-chart";
-import { WarehouseForm } from "@/components/WarehouseForm";
-import { useWarehouses } from "@/hooks/useWarehouses";
-import {
-  calculateIndoorPercentage,
-  calculateOutdoorPercentage,
-  calculateTotalPercentage,
-  getWarehouseAverageStatus,
-  statusColors
-} from "@/utils/warehouse-utils";
-import type { WarehouseStatus } from '@/types/database';
+import { useState } from "react";
 import { useTheme } from 'next-themes'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
-
-interface Warehouse {
-  letter: string;
-  name: string;
-}
-
-interface WarehouseItemProps {
-  warehouse: Warehouse;
-  onSelect: (letter: string) => void;
-  buttonStatus: Record<string, WarehouseStatus>;
-}
-
-function WarehouseItem({ warehouse, onSelect, buttonStatus }: WarehouseItemProps) {
-  return (
-    <div
-      onClick={() => onSelect(warehouse.letter)}
-      className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer"
-    >
-      <div
-        className={`w-3 h-3 rounded-full ${
-          statusColors[getWarehouseAverageStatus(warehouse.letter, buttonStatus)].color
-        }`}
-      />
-      <span>{warehouse.name}</span>
-    </div>
-  );
-}
+import { WarehouseItem } from "@/components/WarehouseItem";
+import { WarehouseForm } from "@/components/WarehouseForm";
+import { useWarehouses } from "@/app/hooks/useWarehouses";
+import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "@/utils/warehouse-utils";
+import type { WarehouseStatus } from '@/types/database';
+import { PieChartComponent } from "@/components/ui/pie-chart";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -114,7 +81,7 @@ export default function Home() {
 
   const handleButtonClick = async (warehouse: string, sectionNumber: number) => {
     const buttonKey = `${warehouse}${sectionNumber}`;
-    const statusOrder: (keyof typeof statusColors)[] = ["green", "yellow", "orange", "red"];
+    const statusOrder: WarehouseStatus[] = ["green", "yellow", "orange", "red"];
     const currentStatus = buttonStatus[buttonKey];
     const currentIndex = currentStatus ? statusOrder.indexOf(currentStatus) : -1;
     const nextIndex = (currentIndex + 1) % statusOrder.length;
