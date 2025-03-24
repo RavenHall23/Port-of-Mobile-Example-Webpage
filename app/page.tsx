@@ -9,7 +9,7 @@ import {
   calculateTotalPercentage,
   getWarehouseAverageStatus,
   statusColors
-} from "@/lib/warehouse-utils";
+} from "@/utils/warehouse-utils";
 
 interface Warehouse {
   letter: string;
@@ -223,29 +223,31 @@ export default function Home() {
             Warehouse {selectedWarehouse}
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            {[1, 2, 3, 4].map((sectionNumber) => {
-              const buttonKey = `${selectedWarehouse}${sectionNumber}`;
-              return (
-                <button
-                  key={sectionNumber}
-                  onClick={() =>
-                    handleButtonClick(selectedWarehouse, sectionNumber)
-                  }
-                  className={`px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
-                    buttonStatus[buttonKey]
-                      ? statusColors[buttonStatus[buttonKey]].color
-                      : "bg-blue-500 hover:bg-blue-600"
-                  }`}
-                >
-                  Section {String.fromCharCode(64 + sectionNumber)}
-                  {buttonStatus[buttonKey] && (
-                    <span className="ml-2">
-                      ({statusColors[buttonStatus[buttonKey]].percentage})
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            {Object.entries(buttonStatus)
+              .filter(([key]) => key.startsWith(selectedWarehouse))
+              .map(([key, status]) => {
+                const sectionNumber = parseInt(key.slice(1));
+                return (
+                  <button
+                    key={sectionNumber}
+                    onClick={() =>
+                      handleButtonClick(selectedWarehouse, sectionNumber)
+                    }
+                    className={`px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
+                      status
+                        ? statusColors[status].color
+                        : "bg-blue-500 hover:bg-blue-600"
+                    }`}
+                  >
+                    Section {String.fromCharCode(64 + sectionNumber)}
+                    {status && (
+                      <span className="ml-2">
+                        ({statusColors[status].percentage})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
           </div>
         </div>
       )}
