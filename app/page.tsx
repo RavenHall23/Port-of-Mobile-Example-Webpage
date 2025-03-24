@@ -18,6 +18,7 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
+  const [removedSectionsList, setRemovedSectionsList] = useState<typeof removedSections>([]);
   
   const {
     indoorWarehouses,
@@ -27,7 +28,10 @@ export default function Home() {
     createWarehouse,
     updateSectionStatus,
     removeWarehouse,
-    downloadWarehouseData
+    removeSection,
+    downloadWarehouseData,
+    removedSections,
+    undoSectionRemoval
   } = useWarehouses();
 
   const { theme, setTheme } = useTheme()
@@ -147,6 +151,19 @@ export default function Home() {
       (sum + percentage) as UtilizationValue, 0 as UtilizationValue)
     return Math.round(total / sections.length)
   }
+
+  const handleRemoveSection = async (warehouseLetter: string, sectionNumber: number) => {
+    if (confirm(`Are you sure you want to remove Section ${String.fromCharCode(64 + sectionNumber)}?`)) {
+      const success = await removeSection(warehouseLetter, sectionNumber);
+      if (success) {
+        // If all sections are removed, clear the selection
+        const remainingSections = Object.keys(buttonStatus).filter(key => key.startsWith(warehouseLetter));
+        if (remainingSections.length === 0) {
+          setSelectedWarehouse(null);
+        }
+      }
+    }
+  };
 
   if (loading) {
     return <div className="min-h-screen p-8 flex items-center justify-center">
@@ -429,26 +446,53 @@ export default function Home() {
                 .map(([key, status]) => {
                   const sectionNumber = parseInt(key.slice(1));
                   return (
-                    <button
-                      key={sectionNumber}
-                      onClick={() =>
-                        handleButtonClick(selectedWarehouse, sectionNumber)
-                      }
-                      className={`px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
-                        status
-                          ? statusColors[status].color
-                          : "bg-blue-500 hover:bg-blue-600"
-                      }`}
-                    >
-                      Section {String.fromCharCode(64 + sectionNumber)}
-                      {status && (
-                        <span className="ml-2">
-                          ({statusColors[status].percentage})
-                        </span>
-                      )}
-                    </button>
+                    <div key={sectionNumber} className="relative group">
+                      <button
+                        onClick={() =>
+                          handleButtonClick(selectedWarehouse, sectionNumber)
+                        }
+                        className={`w-full px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
+                          status
+                            ? statusColors[status].color
+                            : "bg-blue-500 hover:bg-blue-600"
+                        }`}
+                      >
+                        Section {String.fromCharCode(64 + sectionNumber)}
+                        {status && (
+                          <span className="ml-2">
+                            ({statusColors[status].percentage})
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveSection(selectedWarehouse, sectionNumber)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
+                        title="Remove section"
+                      >
+                        ×
+                      </button>
+                    </div>
                   );
                 })}
+            </div>
+          </div>
+        )}
+
+        {/* Undo Panel */}
+        {removedSections.length > 0 && (
+          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-600 dark:text-gray-300">
+                Section {String.fromCharCode(64 + removedSections[0].sectionNumber)} removed from {
+                  [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === removedSections[0].warehouseLetter)?.name
+                }
+              </span>
+              <button
+                onClick={() => undoSectionRemoval(removedSections[0])}
+                className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+              >
+                Undo
+              </button>
             </div>
           </div>
         )}

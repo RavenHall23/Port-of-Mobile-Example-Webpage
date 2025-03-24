@@ -6,88 +6,67 @@ import type { Database } from '@/types/database'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
+interface RemovedSection {
+  warehouseLetter: string;
+  sectionNumber: number;
+  status: WarehouseStatus;
+  timestamp: number;
+}
+
 export function useWarehouses() {
   const [indoorWarehouses, setIndoorWarehouses] = useState<Warehouse[]>([])
   const [outdoorWarehouses, setOutdoorWarehouses] = useState<Warehouse[]>([])
   const [buttonStatus, setButtonStatus] = useState<Record<string, WarehouseStatus>>({})
   const [loading, setLoading] = useState(true)
-  const [supabase, setSupabase] = useState<SupabaseClient<Database> | null>(null)
+  const [removedSections, setRemovedSections] = useState<RemovedSection[]>([])
+  const [supabase] = useState(() => createClient())
 
-  useEffect(() => {
-    const initSupabase = async () => {
-      const client = await createClient()
-      setSupabase(client)
-      await fetchWarehouses(client)
-    }
-    initSupabase()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const fetchWarehouses = async () => {
+    if (!supabase) return;
 
-  const sortWarehouses = (warehouses: Warehouse[]) => {
-    return [...warehouses].sort((a, b) => a.name.localeCompare(b.name));
-  };
-
-  const fetchWarehouses = async (client: SupabaseClient<Database>) => {
     try {
-      console.log('Starting warehouse fetch...');
-      setLoading(true);
-
-      // Fetch warehouses
-      const { data: warehouses, error: warehousesError } = await client
+      const { data: warehouseData, error } = await supabase
         .from('warehouses')
         .select('*')
-        .order('created_at', { ascending: true });
+        .order('letter');
 
-      if (warehousesError) {
-        console.error('Error fetching warehouses:', warehousesError);
-        throw warehousesError;
-      }
+      if (error) throw error;
 
-      console.log('Fetched warehouses:', warehouses);
+      const indoor = warehouseData.filter(w => w.type === 'indoor');
+      const outdoor = warehouseData.filter(w => w.type === 'outdoor');
 
-      // Fetch sections
-      const { data: sections, error: sectionsError } = await client
+      setIndoorWarehouses(indoor);
+      setOutdoorWarehouses(outdoor);
+
+      // Fetch sections status
+      const { data: sectionsData, error: sectionsError } = await supabase
         .from('warehouse_sections')
         .select('*');
 
-      if (sectionsError) {
-        console.error('Error fetching sections:', sectionsError);
-        throw sectionsError;
-      }
+      if (sectionsError) throw sectionsError;
 
-      console.log('Fetched sections:', sections);
-
-      // Process warehouses and sections
-      const indoor: Warehouse[] = [];
-      const outdoor: Warehouse[] = [];
-      const status: Record<string, WarehouseStatus> = {};
-
-      warehouses.forEach((warehouse: Warehouse) => {
-        const warehouseSections = sections.filter(
-          (section: WarehouseSection) => section.warehouse_id === warehouse.id
-        );
-
-        warehouseSections.forEach((section: WarehouseSection) => {
-          status[`${warehouse.letter}${section.section_number}`] = section.status;
-        });
-
-        if (warehouse.type === 'indoor') {
-          indoor.push(warehouse);
-        } else {
-          outdoor.push(warehouse);
+      const newButtonStatus: Record<string, WarehouseStatus> = {};
+      sectionsData.forEach(section => {
+        const warehouse = warehouseData.find(w => w.id === section.warehouse_id);
+        if (warehouse) {
+          newButtonStatus[`${warehouse.letter}${section.section_number}`] = section.status;
         }
       });
 
-      // Sort warehouses alphabetically
-      setIndoorWarehouses(sortWarehouses(indoor));
-      setOutdoorWarehouses(sortWarehouses(outdoor));
-      setButtonStatus(status);
-      console.log('Warehouse fetch completed successfully');
+      setButtonStatus(newButtonStatus);
     } catch (error) {
-      console.error('Error in fetchWarehouses:', error);
-      throw error;
+      console.error('Error fetching warehouses:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchWarehouses();
+  }, []);
+
+  const sortWarehouses = (warehouses: Warehouse[]) => {
+    return [...warehouses].sort((a, b) => a.name.localeCompare(b.name));
   };
 
   const createWarehouse = async (type: WarehouseType, name: string, sections: number) => {
@@ -230,64 +209,147 @@ export function useWarehouses() {
     if (!supabase) return false;
     
     try {
-      console.log('Starting warehouse removal for letter:', letter);
-      
-      // Find the warehouse to remove
-      const allWarehouses = [...indoorWarehouses, ...outdoorWarehouses];
-      const warehouseToRemove = allWarehouses.find(w => w.letter === letter);
-      
-      if (!warehouseToRemove) {
+      // Get the warehouse to remove
+      const { data: warehouse } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('letter', letter)
+        .single();
+
+      if (!warehouse) {
         console.error('Warehouse not found:', letter);
         return false;
       }
 
-      console.log('Found warehouse to remove:', warehouseToRemove);
-
       // Delete sections first
-      const { error: sectionsError } = await supabase
+      await supabase
         .from('warehouse_sections')
         .delete()
-        .eq('warehouse_id', warehouseToRemove.id);
-
-      if (sectionsError) {
-        console.error('Error deleting sections:', sectionsError);
-        throw sectionsError;
-      }
+        .eq('warehouse_id', warehouse.id);
 
       // Delete warehouse
-      const { error: warehouseError } = await supabase
+      await supabase
         .from('warehouses')
         .delete()
-        .eq('id', warehouseToRemove.id);
+        .eq('letter', letter);
 
-      if (warehouseError) {
-        console.error('Error deleting warehouse:', warehouseError);
-        throw warehouseError;
-      }
-
-      // Update local state with sorting
-      if (warehouseToRemove.type === 'indoor') {
-        setIndoorWarehouses(prev => sortWarehouses(prev.filter(w => w.letter !== letter)));
-      } else {
-        setOutdoorWarehouses(prev => sortWarehouses(prev.filter(w => w.letter !== letter)));
-      }
-
-      // Update button status
-      const newStatus = { ...buttonStatus };
-      Object.keys(newStatus).forEach(key => {
+      // Remove all sections for this warehouse from buttonStatus
+      const newButtonStatus = { ...buttonStatus };
+      Object.keys(newButtonStatus).forEach(key => {
         if (key.startsWith(letter)) {
-          delete newStatus[key];
+          delete newButtonStatus[key];
         }
       });
-      setButtonStatus(newStatus);
-
-      console.log('Warehouse removal completed successfully');
+      setButtonStatus(newButtonStatus);
+      
+      await fetchWarehouses();
       return true;
     } catch (error) {
       console.error('Error removing warehouse:', error);
       return false;
     }
-  }
+  };
+
+  const removeSection = async (warehouseLetter: string, sectionNumber: number) => {
+    if (!supabase) return false;
+    
+    try {
+      // Get the current warehouse
+      const { data: warehouse } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('letter', warehouseLetter)
+        .single();
+
+      if (!warehouse) return false;
+
+      // Store the section's current status before removal
+      const currentStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
+      
+      // Save the removed section info for potential undo
+      setRemovedSections(prev => [
+        {
+          warehouseLetter,
+          sectionNumber,
+          status: currentStatus || 'green',
+          timestamp: Date.now()
+        },
+        ...prev.slice(0, 9) // Keep only the 10 most recent removals
+      ]);
+
+      // Delete the specific section from warehouse_sections
+      await supabase
+        .from('warehouse_sections')
+        .delete()
+        .eq('warehouse_id', warehouse.id)
+        .eq('section_number', sectionNumber);
+
+      // Update the warehouse with one less section
+      await supabase
+        .from('warehouses')
+        .update({ sections: warehouse.sections - 1 })
+        .eq('letter', warehouseLetter);
+
+      // Remove the section from buttonStatus
+      const newButtonStatus = { ...buttonStatus };
+      delete newButtonStatus[`${warehouseLetter}${sectionNumber}`];
+
+      setButtonStatus(newButtonStatus);
+      await fetchWarehouses();
+      return true;
+    } catch (error) {
+      console.error('Error removing section:', error);
+      return false;
+    }
+  };
+
+  const undoSectionRemoval = async (removedSection: RemovedSection) => {
+    if (!supabase) return false;
+    
+    try {
+      // Get the current warehouse
+      const { data: warehouse } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('letter', removedSection.warehouseLetter)
+        .single();
+
+      if (!warehouse) return false;
+
+      // Insert the section back into warehouse_sections
+      await supabase
+        .from('warehouse_sections')
+        .insert({
+          warehouse_id: warehouse.id,
+          section_number: removedSection.sectionNumber,
+          status: removedSection.status
+        });
+
+      // Update the warehouse with one more section
+      await supabase
+        .from('warehouses')
+        .update({ sections: warehouse.sections + 1 })
+        .eq('letter', removedSection.warehouseLetter);
+
+      // Add the section back to buttonStatus
+      const newButtonStatus = { ...buttonStatus };
+      newButtonStatus[`${removedSection.warehouseLetter}${removedSection.sectionNumber}`] = removedSection.status;
+
+      setButtonStatus(newButtonStatus);
+      
+      // Remove this section from removedSections
+      setRemovedSections(prev => prev.filter(s => 
+        s.warehouseLetter !== removedSection.warehouseLetter || 
+        s.sectionNumber !== removedSection.sectionNumber
+      ));
+
+      await fetchWarehouses();
+      return true;
+    } catch (error) {
+      console.error('Error restoring section:', error);
+      return false;
+    }
+  };
 
   const downloadWarehouseData = () => {
     const doc = new jsPDF()
@@ -428,6 +490,9 @@ export function useWarehouses() {
     createWarehouse,
     updateSectionStatus,
     removeWarehouse,
-    downloadWarehouseData
+    removeSection,
+    downloadWarehouseData,
+    removedSections,
+    undoSectionRemoval
   }
 } 
