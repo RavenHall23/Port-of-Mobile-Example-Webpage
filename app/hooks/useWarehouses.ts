@@ -482,6 +482,64 @@ export function useWarehouses() {
     doc.save(`warehouse-status-${date.replace(/\//g, '-')}.pdf`)
   }
 
+  const addSections = async (warehouseLetter: string, numberOfSections: number) => {
+    if (!supabase) return false;
+    
+    try {
+      // Get the current warehouse
+      const { data: warehouse } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('letter', warehouseLetter)
+        .single();
+
+      if (!warehouse) return false;
+
+      // Get the current highest section number
+      const existingSections = Object.keys(buttonStatus)
+        .filter(key => key.startsWith(warehouseLetter))
+        .map(key => parseInt(key.slice(1)));
+      
+      const highestSectionNumber = Math.max(0, ...existingSections);
+
+      // Create new sections starting from the next number
+      const sectionsToInsert = Array.from(
+        { length: numberOfSections }, 
+        (_, i) => ({
+          warehouse_id: warehouse.id,
+          section_number: highestSectionNumber + i + 1,
+          status: 'green' as WarehouseStatus
+        })
+      );
+
+      // Insert new sections
+      const { error: sectionsError } = await supabase
+        .from('warehouse_sections')
+        .insert(sectionsToInsert);
+
+      if (sectionsError) throw sectionsError;
+
+      // Update warehouse with new total sections
+      await supabase
+        .from('warehouses')
+        .update({ sections: warehouse.sections + numberOfSections })
+        .eq('letter', warehouseLetter);
+
+      // Update button status
+      const newButtonStatus = { ...buttonStatus };
+      sectionsToInsert.forEach(section => {
+        newButtonStatus[`${warehouseLetter}${section.section_number}`] = section.status;
+      });
+      setButtonStatus(newButtonStatus);
+
+      await fetchWarehouses();
+      return true;
+    } catch (error) {
+      console.error('Error adding sections:', error);
+      return false;
+    }
+  };
+
   return {
     indoorWarehouses,
     outdoorWarehouses,
@@ -493,6 +551,7 @@ export function useWarehouses() {
     removeSection,
     downloadWarehouseData,
     removedSections,
-    undoSectionRemoval
+    undoSectionRemoval,
+    addSections
   }
 } 

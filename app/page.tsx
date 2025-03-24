@@ -19,6 +19,9 @@ export default function Home() {
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
   const [removedSectionsList, setRemovedSectionsList] = useState<typeof removedSections>([]);
+  const [showAddSectionsModal, setShowAddSectionsModal] = useState(false);
+  const [newSectionsCount, setNewSectionsCount] = useState(1);
+  const [addingSections, setAddingSections] = useState(false);
   
   const {
     indoorWarehouses,
@@ -31,7 +34,8 @@ export default function Home() {
     removeSection,
     downloadWarehouseData,
     removedSections,
-    undoSectionRemoval
+    undoSectionRemoval,
+    addSections
   } = useWarehouses();
 
   const { theme, setTheme } = useTheme()
@@ -162,6 +166,23 @@ export default function Home() {
           setSelectedWarehouse(null);
         }
       }
+    }
+  };
+
+  const handleAddSections = async () => {
+    if (!selectedWarehouse || newSectionsCount < 1) return;
+    
+    setAddingSections(true);
+    try {
+      const success = await addSections(selectedWarehouse, newSectionsCount);
+      if (success) {
+        setShowAddSectionsModal(false);
+        setNewSectionsCount(1);
+      }
+    } catch (error) {
+      console.error('Error adding sections:', error);
+    } finally {
+      setAddingSections(false);
     }
   };
 
@@ -437,9 +458,31 @@ export default function Home() {
 
         {selectedWarehouse && (
           <div className="mt-8">
-            <h2 className="text-2xl font-bold mb-4">
-              {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
-            </h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">
+                {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
+              </h2>
+              <button
+                onClick={() => setShowAddSectionsModal(true)}
+                className="group px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:translate-y-[-1px]"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                  />
+                </svg>
+                Add Sections
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               {Object.entries(buttonStatus)
                 .filter(([key]) => key.startsWith(selectedWarehouse))
@@ -474,6 +517,50 @@ export default function Home() {
                     </div>
                   );
                 })}
+            </div>
+          </div>
+        )}
+
+        {/* Add Sections Modal */}
+        {showAddSectionsModal && selectedWarehouse && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
+                Add Sections to {
+                  [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name
+                }
+              </h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Number of Sections to Add
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={newSectionsCount}
+                  onChange={(e) => setNewSectionsCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                />
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowAddSectionsModal(false);
+                    setNewSectionsCount(1);
+                  }}
+                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddSections}
+                  disabled={addingSections || newSectionsCount < 1}
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {addingSections ? 'Adding...' : 'Add Sections'}
+                </button>
+              </div>
             </div>
           </div>
         )}
