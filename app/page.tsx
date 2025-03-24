@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { WarehouseItem } from "@/components/WarehouseItem";
@@ -22,6 +22,7 @@ export default function Home() {
   const [showAddSectionsModal, setShowAddSectionsModal] = useState(false);
   const [newSectionsCount, setNewSectionsCount] = useState(1);
   const [addingSections, setAddingSections] = useState(false);
+  const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   
   const {
     indoorWarehouses,
@@ -35,10 +36,20 @@ export default function Home() {
     downloadWarehouseData,
     removedSections,
     undoSectionRemoval,
-    addSections
+    addSections,
+    clearRemovedSections
   } = useWarehouses();
 
   const { theme, setTheme } = useTheme()
+
+  // Clear any existing timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (undoTimeout) {
+        clearTimeout(undoTimeout);
+      }
+    };
+  }, [undoTimeout]);
 
   const handleWarehouseClick = (warehouse: string) => {
     const allWarehouses = [...indoorWarehouses, ...outdoorWarehouses];
@@ -158,8 +169,19 @@ export default function Home() {
 
   const handleRemoveSection = async (warehouseLetter: string, sectionNumber: number) => {
     if (confirm(`Are you sure you want to remove Section ${String.fromCharCode(64 + sectionNumber)}?`)) {
+      // Clear any existing timeout
+      if (undoTimeout) {
+        clearTimeout(undoTimeout);
+      }
+
       const success = await removeSection(warehouseLetter, sectionNumber);
       if (success) {
+        // Set new timeout for 3 seconds
+        const timeout = setTimeout(() => {
+          clearRemovedSections();
+        }, 3000);
+        setUndoTimeout(timeout);
+
         // If all sections are removed, clear the selection
         const remainingSections = Object.keys(buttonStatus).filter(key => key.startsWith(warehouseLetter));
         if (remainingSections.length === 0) {
@@ -184,6 +206,14 @@ export default function Home() {
     } finally {
       setAddingSections(false);
     }
+  };
+
+  const handleUndoClick = (section: (typeof removedSections)[0]) => {
+    if (undoTimeout) {
+      clearTimeout(undoTimeout);
+      setUndoTimeout(null);
+    }
+    undoSectionRemoval(section);
   };
 
   if (loading) {
@@ -566,16 +596,19 @@ export default function Home() {
         )}
 
         {/* Undo Panel */}
-        {removedSections.length > 0 && (
-          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3">
-            <div className="flex items-center gap-3">
+        {removedSections.length > 0 && removedSections[0] && (
+          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 animate-fade-in-up">
+            <div className="flex items-center gap-3 relative">
+              <div className="absolute bottom-0 left-0 h-1 bg-gray-200 dark:bg-gray-700 w-full rounded-full overflow-hidden">
+                <div className="h-full bg-blue-500 animate-progress" />
+              </div>
               <span className="text-sm text-gray-600 dark:text-gray-300">
                 Section {String.fromCharCode(64 + removedSections[0].sectionNumber)} removed from {
                   [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === removedSections[0].warehouseLetter)?.name
                 }
               </span>
               <button
-                onClick={() => undoSectionRemoval(removedSections[0])}
+                onClick={() => handleUndoClick(removedSections[0])}
                 className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
               >
                 Undo

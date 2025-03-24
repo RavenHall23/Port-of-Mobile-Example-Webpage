@@ -540,6 +540,10 @@ export function useWarehouses() {
     }
   };
 
+  const clearRemovedSections = () => {
+    setRemovedSections([]);
+  };
+
   return {
     indoorWarehouses,
     outdoorWarehouses,
@@ -552,6 +556,7 @@ export function useWarehouses() {
     downloadWarehouseData,
     removedSections,
     undoSectionRemoval,
-    addSections
+    addSections,
+    clearRemovedSections
   }
 } 
