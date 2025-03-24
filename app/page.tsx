@@ -192,7 +192,7 @@ export default function Home() {
             title="Port Utilization"
             description="Indoor and Outdoor Warehouses"
             centerLabel="Total Utilization"
-            centerValue={totalPercentage}
+            centerValue={Math.round(totalPercentage)}
             innerRadius={60}
             outerRadius={100}
             className="shadow-lg"
@@ -201,13 +201,13 @@ export default function Home() {
               <div className="flex justify-around w-full pt-2">
                 <div className="flex flex-col items-center">
                   <span className="font-semibold text-blue-600 dark:text-blue-400 text-lg">
-                    {indoorPercentage}%
+                    {Math.round(indoorPercentage)}%
                   </span>
                   <span className="text-sm text-muted-foreground">Indoor</span>
                 </div>
                 <div className="flex flex-col items-center">
                   <span className="font-semibold text-purple-600 dark:text-purple-400 text-lg">
-                    {outdoorPercentage}%
+                    {Math.round(outdoorPercentage)}%
                   </span>
                   <span className="text-sm text-muted-foreground">Outdoor</span>
                 </div>
