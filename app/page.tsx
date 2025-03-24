@@ -18,7 +18,6 @@ export default function Home() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
-  const [removedSectionsList, setRemovedSectionsList] = useState<typeof removedSections>([]);
   const [showAddSectionsModal, setShowAddSectionsModal] = useState(false);
   const [newSectionsCount, setNewSectionsCount] = useState(1);
   const [addingSections, setAddingSections] = useState(false);

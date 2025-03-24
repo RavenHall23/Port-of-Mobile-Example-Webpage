@@ -1,8 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import type { Warehouse, WarehouseStatus, WarehouseSection, WarehouseType } from '@/types/database'
-import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Database } from '@/types/database'
+import type { Warehouse, WarehouseStatus, WarehouseType } from '@/types/database'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
@@ -21,7 +19,7 @@ export function useWarehouses() {
   const [removedSections, setRemovedSections] = useState<RemovedSection[]>([])
   const [supabase] = useState(() => createClient())
 
-  const fetchWarehouses = async () => {
+  const fetchWarehouses = useCallback(async () => {
     if (!supabase) return;
 
     try {
@@ -59,11 +57,11 @@ export function useWarehouses() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchWarehouses();
-  }, []);
+  }, [fetchWarehouses]);
 
   const sortWarehouses = (warehouses: Warehouse[]) => {
     return [...warehouses].sort((a, b) => a.name.localeCompare(b.name));
