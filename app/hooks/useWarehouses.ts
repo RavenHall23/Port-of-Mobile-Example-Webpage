@@ -3,6 +3,14 @@ import { createClient } from '@/utils/supabase/client'
 import type { Warehouse, WarehouseStatus, WarehouseSection, WarehouseType } from '@/types/database'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
+import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
+import type { UserOptions } from 'jspdf-autotable'
+
+// Extend jsPDF with autoTable
+interface jsPDFWithAutoTable extends jsPDF {
+  autoTable: (options: UserOptions) => jsPDF;
+}
 
 export function useWarehouses() {
   const [indoorWarehouses, setIndoorWarehouses] = useState<Warehouse[]>([])
@@ -287,6 +295,137 @@ export function useWarehouses() {
     }
   }
 
+  const downloadWarehouseData = () => {
+    const doc = new jsPDF()
+    const date = new Date().toLocaleDateString()
+    
+    // Title
+    doc.setFontSize(20)
+    doc.text('Warehouse Status Report', 14, 15)
+    doc.setFontSize(12)
+    doc.text(`Generated on: ${date}`, 14, 25)
+    doc.setFontSize(10)
+
+    // Calculate percentages for each section
+    const calculateSectionPercentage = (status: WarehouseStatus) => {
+      switch (status) {
+        case 'green': return 100
+        case 'yellow': return 75
+        case 'orange': return 50
+        case 'red': return 0
+        default: return 0
+      }
+    }
+
+    // Calculate warehouse type statistics
+    const calculateWarehouseStats = (warehouses: Warehouse[]) => {
+      const sections = warehouses.flatMap(warehouse => 
+        Object.entries(buttonStatus)
+          .filter(([key]) => key.startsWith(warehouse.letter))
+          .map(([key, status]) => ({
+            status,
+            percentage: calculateSectionPercentage(status)
+          }))
+      )
+
+      const totalSections = sections.length
+      const totalPercentage = sections.reduce((sum, section) => sum + section.percentage, 0)
+      const averagePercentage = totalSections > 0 ? Math.round(totalPercentage / totalSections) : 0
+
+      return {
+        totalSections,
+        averagePercentage
+      }
+    }
+
+    // Indoor Warehouses Table
+    const indoorData = indoorWarehouses.map(warehouse => {
+      const sections = Object.entries(buttonStatus)
+        .filter(([key]) => key.startsWith(warehouse.letter))
+        .map(([key, status]) => ({
+          section: key.replace(warehouse.letter, ''),
+          status,
+          percentage: calculateSectionPercentage(status)
+        }))
+      
+      return sections.map(section => [
+        warehouse.name,
+        'Indoor',
+        section.section,
+        `${section.percentage}% available`
+      ])
+    }).flat()
+
+    if (indoorData.length > 0) {
+      doc.text('Indoor Warehouses', 14, 35)
+      autoTable(doc, {
+        startY: 40,
+        head: [['Name', 'Type', 'Section', 'Status']],
+        body: indoorData,
+        theme: 'grid',
+        headStyles: { fillColor: [41, 128, 185] },
+        styles: { fontSize: 8 }
+      })
+    }
+
+    // Outdoor Warehouses Table
+    const outdoorData = outdoorWarehouses.map(warehouse => {
+      const sections = Object.entries(buttonStatus)
+        .filter(([key]) => key.startsWith(warehouse.letter))
+        .map(([key, status]) => ({
+          section: key.replace(warehouse.letter, ''),
+          status,
+          percentage: calculateSectionPercentage(status)
+        }))
+      
+      return sections.map(section => [
+        warehouse.name,
+        'Outdoor',
+        section.section,
+        `${section.percentage}% available`
+      ])
+    }).flat()
+
+    if (outdoorData.length > 0) {
+      doc.text('Outdoor Warehouses', 14, (doc as any).lastAutoTable.finalY + 15)
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 20,
+        head: [['Name', 'Type', 'Section', 'Status']],
+        body: outdoorData,
+        theme: 'grid',
+        headStyles: { fillColor: [46, 204, 113] },
+        styles: { fontSize: 8 }
+      })
+    }
+
+    // Summary Statistics
+    const indoorStats = calculateWarehouseStats(indoorWarehouses)
+    const outdoorStats = calculateWarehouseStats(outdoorWarehouses)
+    const totalSections = indoorStats.totalSections + outdoorStats.totalSections
+    const overallPercentage = totalSections > 0 
+      ? Math.round((indoorStats.averagePercentage * indoorStats.totalSections + 
+                    outdoorStats.averagePercentage * outdoorStats.totalSections) / totalSections)
+      : 0
+
+    const summaryY = (doc as any).lastAutoTable.finalY + 15
+    doc.text('Summary Statistics', 14, summaryY)
+    doc.setFontSize(9)
+    doc.text(`Indoor Warehouses: ${indoorStats.totalSections} sections, ${indoorStats.averagePercentage}% average availability`, 14, summaryY + 7)
+    doc.text(`Outdoor Warehouses: ${outdoorStats.totalSections} sections, ${outdoorStats.averagePercentage}% average availability`, 14, summaryY + 14)
+    doc.text(`Overall: ${totalSections} total sections, ${overallPercentage}% average availability`, 14, summaryY + 21)
+
+    // Legend
+    const legendY = summaryY + 35
+    doc.text('Status Legend:', 14, legendY)
+    doc.text('Green (100%): Available', 14, legendY + 7)
+    doc.text('Yellow (75%): Partially Available', 14, legendY + 14)
+    doc.text('Orange (50%): Limited Availability', 14, legendY + 21)
+    doc.text('Red (0%): Not Available', 14, legendY + 28)
+
+    // Download the PDF
+    doc.save(`warehouse-status-${date.replace(/\//g, '-')}.pdf`)
+  }
+
   return {
     indoorWarehouses,
     outdoorWarehouses,
@@ -294,6 +433,7 @@ export function useWarehouses() {
     loading,
     createWarehouse,
     updateSectionStatus,
-    removeWarehouse
+    removeWarehouse,
+    downloadWarehouseData
   }
 } 
