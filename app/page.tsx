@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { PieChartComponent } from "@/components/ui/pie-chart";
+import { WarehouseForm } from "@/components/WarehouseForm";
 import {
   calculateIndoorPercentage,
   calculateOutdoorPercentage,
@@ -15,6 +16,10 @@ export default function Home() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(
     null
   );
+  const [showIndoorForm, setShowIndoorForm] = useState(false);
+  const [showOutdoorForm, setShowOutdoorForm] = useState(false);
+  const [indoorWarehouses, setIndoorWarehouses] = useState(["A", "B", "C", "D"]);
+  const [outdoorWarehouses, setOutdoorWarehouses] = useState(["E", "F", "G", "H"]);
   const [buttonStatus, setButtonStatus] = useState<{
     [key: string]: keyof typeof statusColors;
   }>({
@@ -55,9 +60,6 @@ export default function Home() {
     H4: "green",
   });
 
-  const indoorWarehouses = ["A", "B", "C", "D"];
-  const outdoorWarehouses = ["E", "F", "G", "H"];
-
   const handleWarehouseClick = (warehouse: string) => {
     setSelectedWarehouse(warehouse);
     setIndoorOpen(false);
@@ -75,6 +77,30 @@ export default function Home() {
       ...prev,
       [buttonKey]: statusOrder[nextIndex],
     }));
+  };
+
+  const handleCreateWarehouse = (type: 'indoor' | 'outdoor', data: { name: string; sections: number }) => {
+    const warehouses = type === 'indoor' ? indoorWarehouses : outdoorWarehouses;
+    const newWarehouse = String.fromCharCode(65 + warehouses.length); // Get next letter in sequence
+    const newWarehouses = [...warehouses, newWarehouse];
+    
+    // Update the appropriate warehouse list
+    if (type === 'indoor') {
+      setIndoorWarehouses(newWarehouses);
+    } else {
+      setOutdoorWarehouses(newWarehouses);
+    }
+
+    // Initialize sections with green status
+    const newButtonStatus = { ...buttonStatus };
+    for (let i = 1; i <= 4; i++) {
+      newButtonStatus[`${newWarehouse}${i}`] = "green";
+    }
+    setButtonStatus(newButtonStatus);
+
+    // Close the form
+    setShowIndoorForm(false);
+    setShowOutdoorForm(false);
   };
 
   // Calculate percentages using the utility functions
@@ -169,9 +195,7 @@ export default function Home() {
                 ))}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => {
-                    /* TODO: Implement create warehouse */
-                  }}
+                  onClick={() => setShowIndoorForm(true)}
                 >
                   <span className="text-blue-500">+ Create Warehouse</span>
                 </div>
@@ -203,9 +227,7 @@ export default function Home() {
                 ))}
                 <div
                   className="flex items-center justify-between px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-t border-gray-200 dark:border-gray-700"
-                  onClick={() => {
-                    /* TODO: Implement create warehouse */
-                  }}
+                  onClick={() => setShowOutdoorForm(true)}
                 >
                   <span className="text-purple-500">+ Create Warehouse</span>
                 </div>
@@ -247,6 +269,27 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* Warehouse Forms */}
+      {showIndoorForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <WarehouseForm
+            type="indoor"
+            onClose={() => setShowIndoorForm(false)}
+            onSubmit={(data) => handleCreateWarehouse('indoor', data)}
+          />
+        </div>
+      )}
+
+      {showOutdoorForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <WarehouseForm
+            type="outdoor"
+            onClose={() => setShowOutdoorForm(false)}
+            onSubmit={(data) => handleCreateWarehouse('outdoor', data)}
+          />
+        </div>
+      )}
     </div>
   );
 }
