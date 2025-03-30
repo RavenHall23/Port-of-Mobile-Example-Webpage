@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useState } from "react"
 
 interface WarehouseFormProps {
   type: 'indoor' | 'outdoor';
@@ -18,38 +19,28 @@ interface WarehouseFormProps {
 }
 
 export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
-  const [formData, setFormData] = React.useState({
-    name: '',
-    sections: '' // Change to empty string initially
-  });
+  const [name, setName] = useState("");
+  const [sections, setSections] = useState("1");
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [error, setError] = React.useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      setError('Please enter a warehouse name');
-      return;
-    }
-    const sectionsNum = parseInt(formData.sections);
-    if (isNaN(sectionsNum) || sectionsNum < 1 || sectionsNum > 5000) {
-      setError('Please enter a valid number of sections (1-5000)');
-      return;
-    }
-    onSubmit({ name: formData.name, sections: sectionsNum });
-    onClose();
-  };
+    setError(null);
+    setIsSubmitting(true);
 
-  const handleSectionsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setFormData({ ...formData, sections: value });
-    setError('');
+    try {
+      const sectionsNumber = parseInt(sections);
+      if (isNaN(sectionsNumber) || sectionsNumber < 1 || sectionsNumber > 5000) {
+        throw new Error('Number of sections must be between 1 and 5000');
+      }
+      await onSubmit({ name, sections: sectionsNumber });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while creating the warehouse');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-
-  const isFormValid = formData.name.trim() !== '' && 
-    !isNaN(parseInt(formData.sections)) && 
-    parseInt(formData.sections) >= 1 && 
-    parseInt(formData.sections) <= 5000;
 
   return (
     <Card className="w-[350px]">
@@ -65,43 +56,44 @@ export function WarehouseForm({ type, onClose, onSubmit }: WarehouseFormProps) {
               <Input 
                 id="name" 
                 placeholder="Enter warehouse name"
-                value={formData.name}
+                value={name}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                  setFormData({ ...formData, name: e.target.value });
+                  setName(e.target.value);
                   setError('');
                 }}
                 required
-                className={`${formData.name.trim() === '' ? 'border-red-500 focus-visible:ring-red-500' : 'border-green-500 focus-visible:ring-green-500'}`}
+                className={`${error ? 'border-red-500 focus-visible:ring-red-500' : 'border-green-500 focus-visible:ring-green-500'}`}
               />
             </div>
             <div className="flex flex-col space-y-1.5">
               <Label htmlFor="sections">Number of Sections</Label>
               <Input 
                 id="sections" 
-                type="number"
-                min="1"
-                max="5000"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder="Enter number of sections (1-5000)"
-                value={formData.sections}
-                onChange={handleSectionsChange}
+                value={sections}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  const value = e.target.value.replace(/[^0-9]/g, '');
+                  if (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 5000)) {
+                    setSections(value);
+                    setError('');
+                  }
+                }}
                 required
-                className={`${
-                  formData.sections === '' || 
-                  isNaN(parseInt(formData.sections)) || 
-                  parseInt(formData.sections) < 1 || 
-                  parseInt(formData.sections) > 5000
-                    ? 'border-red-500 focus-visible:ring-red-500'
-                    : 'border-green-500 focus-visible:ring-green-500'
-                }`}
+                className={`${error ? 'border-red-500 focus-visible:ring-red-500' : 'border-green-500 focus-visible:ring-green-500'}`}
               />
-              {error && <p className="text-sm text-red-500">{error}</p>}
             </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
           </div>
         </form>
       </CardContent>
       <CardFooter className="flex justify-between">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSubmit} disabled={!isFormValid}>Add Warehouse</Button>
+        <Button onClick={handleSubmit} disabled={isSubmitting}>
+          {isSubmitting ? 'Creating...' : 'Create Warehouse'}
+        </Button>
       </CardFooter>
     </Card>
   )
