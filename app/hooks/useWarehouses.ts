@@ -126,6 +126,7 @@ export function useWarehouses() {
       // Create sections
       const sectionsToInsert = Array.from({ length: sections }, (_, i) => ({
         warehouse_id: warehouse.id,
+        warehouse_name: name,
         section_number: i + 1,
         status: 'green' as WarehouseStatus
       }));
@@ -483,17 +484,28 @@ export function useWarehouses() {
   }
 
   const addSections = async (warehouseLetter: string, numberOfSections: number) => {
-    if (!supabase) return false;
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      throw new Error('Database connection not initialized');
+    }
     
     try {
       // Get the current warehouse
-      const { data: warehouse } = await supabase
+      const { data: warehouse, error: warehouseError } = await supabase
         .from('warehouses')
         .select('*')
         .eq('letter', warehouseLetter)
         .single();
 
-      if (!warehouse) return false;
+      if (warehouseError) {
+        console.error('Error fetching warehouse:', warehouseError);
+        throw new Error(`Failed to fetch warehouse: ${warehouseError.message}`);
+      }
+
+      if (!warehouse) {
+        console.error('Warehouse not found:', warehouseLetter);
+        throw new Error(`Warehouse ${warehouseLetter} not found`);
+      }
 
       // Get the current highest section number
       const existingSections = Object.keys(buttonStatus)
@@ -507,23 +519,24 @@ export function useWarehouses() {
         { length: numberOfSections }, 
         (_, i) => ({
           warehouse_id: warehouse.id,
+          warehouse_name: warehouse.name,
           section_number: highestSectionNumber + i + 1,
           status: 'green' as WarehouseStatus
         })
       );
+
+      console.log('Attempting to insert sections:', sectionsToInsert);
 
       // Insert new sections
       const { error: sectionsError } = await supabase
         .from('warehouse_sections')
         .insert(sectionsToInsert);
 
-      if (sectionsError) throw sectionsError;
-
-      // Update warehouse with new total sections
-      await supabase
-        .from('warehouses')
-        .update({ sections: warehouse.sections + numberOfSections })
-        .eq('letter', warehouseLetter);
+      if (sectionsError) {
+        console.error('Error inserting sections:', sectionsError);
+        console.error('Error details:', JSON.stringify(sectionsError, null, 2));
+        throw new Error(`Failed to insert sections: ${sectionsError.message}`);
+      }
 
       // Update button status
       const newButtonStatus = { ...buttonStatus };
@@ -536,7 +549,10 @@ export function useWarehouses() {
       return true;
     } catch (error) {
       console.error('Error adding sections:', error);
-      return false;
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Failed to add sections: Unknown error occurred');
     }
   };
 

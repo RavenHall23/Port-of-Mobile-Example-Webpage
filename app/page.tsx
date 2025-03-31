@@ -202,6 +202,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error adding sections:', error);
+      alert(error instanceof Error ? error.message : 'Failed to add sections. Please try again.');
     } finally {
       setAddingSections(false);
     }
@@ -386,7 +387,7 @@ export default function Home() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm.type && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
               <h3 className="text-xl font-bold mb-4">Select Warehouses to Remove</h3>
               <div className="mb-6 max-h-96 overflow-y-auto">
@@ -446,7 +447,7 @@ export default function Home() {
 
         {/* Final Confirmation Modal */}
         {showFinalConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
               <h3 className="text-xl font-bold mb-4">Confirm Warehouse Removal</h3>
               <div className="mb-6">
@@ -552,7 +553,7 @@ export default function Home() {
 
         {/* Add Sections Modal */}
         {showAddSectionsModal && selectedWarehouse && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
               <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
                 Add Sections to {
@@ -596,7 +597,7 @@ export default function Home() {
 
         {/* Undo Panel */}
         {removedSections.length > 0 && removedSections[0] && (
-          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 animate-fade-in-up">
+          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 animate-fade-in-up z-40">
             <div className="flex items-center gap-3 relative">
               <div className="absolute bottom-0 left-0 h-1 bg-gray-200 dark:bg-gray-700 w-full rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 animate-progress" />
