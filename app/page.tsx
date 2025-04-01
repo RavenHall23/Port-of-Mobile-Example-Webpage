@@ -216,35 +216,35 @@ export default function Home() {
   };
 
   if (loading) {
-    return <div className="min-h-screen p-8 flex items-center justify-center">
+    return <div className="min-h-screen p-4 flex items-center justify-center">
       <div className="text-xl">Loading warehouses...</div>
     </div>;
   }
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      {/* Add theme toggle button */}
+      {/* Theme toggle button */}
       <button
         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        className="fixed top-4 right-4 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+        className="fixed top-2 right-2 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors z-50"
         aria-label="Toggle theme"
       >
         {theme === 'dark' ? (
-          <SunIcon className="h-6 w-6 text-yellow-500" />
+          <SunIcon className="h-5 w-5 text-yellow-500" />
         ) : (
-          <MoonIcon className="h-6 w-6 text-gray-700" />
+          <MoonIcon className="h-5 w-5 text-gray-700" />
         )}
       </button>
 
-      <div className="min-h-screen p-8 flex flex-col items-center justify-center">
-        <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
+      <div className="min-h-screen p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center">
+        <h1 className="text-2xl sm:text-[32pt] font-[family-name:var(--font-geist-mono)] mb-6 sm:mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
           Port of Mobile Test
         </h1>
 
-        <div className="flex justify-center mb-4">
+        <div className="flex justify-center mb-4 w-full">
           <button
             onClick={downloadWarehouseData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+            className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
@@ -283,16 +283,16 @@ export default function Home() {
           />
         </div>
 
-        <div className="flex gap-8">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
             <button
               onClick={() => setIndoorOpen(!indoorOpen)}
-              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-cyan-400 text-white font-[family-name:var(--font-geist-sans)] text-base sm:text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               Indoor Warehouse
             </button>
             {indoorOpen && (
-              <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-fit min-w-[200px]">
+              <div className="absolute z-10 w-full sm:w-auto mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mt-2">
                 {indoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
                   return (
@@ -323,15 +323,15 @@ export default function Home() {
             )}
           </div>
 
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <button
               onClick={() => setOutdoorOpen(!outdoorOpen)}
-              className="px-8 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-400 text-white font-[family-name:var(--font-geist-sans)] text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-400 text-white font-[family-name:var(--font-geist-sans)] text-base sm:text-lg shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
             >
               Outdoor Warehouse
             </button>
             {outdoorOpen && (
-              <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-fit min-w-[200px]">
+              <div className="absolute z-10 w-full sm:w-auto mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mt-2">
                 {outdoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
                   return (
@@ -362,6 +362,71 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {selectedWarehouse && (
+          <div className="mt-8 w-full">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+              <h2 className="text-xl sm:text-2xl font-bold">
+                {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
+              </h2>
+              <button
+                onClick={() => setShowAddSectionsModal(true)}
+                className="w-full sm:w-auto group px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg transform hover:translate-y-[-1px]"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                  />
+                </svg>
+                Add Sections
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {Object.entries(buttonStatus)
+                .filter(([key]) => key.startsWith(selectedWarehouse))
+                .map(([key, status]) => {
+                  const sectionNumber = parseInt(key.slice(1));
+                  return (
+                    <div key={sectionNumber} className="relative group">
+                      <button
+                        onClick={() =>
+                          handleButtonClick(selectedWarehouse, sectionNumber)
+                        }
+                        className={`w-full px-6 sm:px-8 py-4 sm:py-6 text-white rounded-lg transition-colors text-xl sm:text-2xl font-semibold ${
+                          status
+                            ? statusColors[status].color
+                            : "bg-blue-500 hover:bg-blue-600"
+                        }`}
+                      >
+                        Section {String.fromCharCode(64 + sectionNumber)}
+                        {status && (
+                          <span className="ml-2">
+                            ({statusColors[status].percentage})
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleRemoveSection(selectedWarehouse, sectionNumber)}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
+                        title="Remove section"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
 
         {/* Warehouse Forms */}
         {showIndoorForm && (
@@ -481,71 +546,6 @@ export default function Home() {
                   Remove Warehouses
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {selectedWarehouse && (
-          <div className="mt-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">
-                {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
-              </h2>
-              <button
-                onClick={() => setShowAddSectionsModal(true)}
-                className="group px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:translate-y-[-1px]"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
-                  />
-                </svg>
-                Add Sections
-              </button>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(buttonStatus)
-                .filter(([key]) => key.startsWith(selectedWarehouse))
-                .map(([key, status]) => {
-                  const sectionNumber = parseInt(key.slice(1));
-                  return (
-                    <div key={sectionNumber} className="relative group">
-                      <button
-                        onClick={() =>
-                          handleButtonClick(selectedWarehouse, sectionNumber)
-                        }
-                        className={`w-full px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
-                          status
-                            ? statusColors[status].color
-                            : "bg-blue-500 hover:bg-blue-600"
-                        }`}
-                      >
-                        Section {String.fromCharCode(64 + sectionNumber)}
-                        {status && (
-                          <span className="ml-2">
-                            ({statusColors[status].percentage})
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveSection(selectedWarehouse, sectionNumber)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
-                        title="Remove section"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
             </div>
           </div>
         )}
