@@ -3,11 +3,11 @@ import type { WarehouseStatus } from '@/types/database'
 export const statusColors: Record<WarehouseStatus, { color: string; percentage: string }> = {
   green: {
     color: 'bg-green-500 hover:bg-green-600',
-    percentage: '100%'
+    percentage: '0%'
   },
   yellow: {
     color: 'bg-yellow-500 hover:bg-yellow-600',
-    percentage: '75%'
+    percentage: '25%'
   },
   orange: {
     color: 'bg-orange-500 hover:bg-orange-600',
@@ -15,7 +15,7 @@ export const statusColors: Record<WarehouseStatus, { color: string; percentage: 
   },
   red: {
     color: 'bg-red-500 hover:bg-red-600',
-    percentage: '25%'
+    percentage: '100%'
   }
 }
 
@@ -23,8 +23,8 @@ export const calculateTotalPercentage = (buttonStatus: Record<string, WarehouseS
   const totalSections = Object.keys(buttonStatus).length;
   if (totalSections === 0) return 0;
 
-  const totalGreen = Object.values(buttonStatus).filter(status => status === 'green').length;
-  return (totalGreen / totalSections) * 100;
+  const totalRed = Object.values(buttonStatus).filter(status => status === 'red').length;
+  return (totalRed / totalSections) * 100;
 };
 
 export const calculateIndoorPercentage = (buttonStatus: Record<string, WarehouseStatus>, indoorLetters: string[]) => {
@@ -34,8 +34,8 @@ export const calculateIndoorPercentage = (buttonStatus: Record<string, Warehouse
   
   if (indoorSections.length === 0) return 0;
 
-  const indoorGreen = indoorSections.filter(([, status]) => status === 'green').length;
-  return (indoorGreen / indoorSections.length) * 100;
+  const indoorRed = indoorSections.filter(([, status]) => status === 'red').length;
+  return (indoorRed / indoorSections.length) * 100;
 };
 
 export const calculateOutdoorPercentage = (buttonStatus: Record<string, WarehouseStatus>, outdoorLetters: string[]) => {
@@ -45,8 +45,8 @@ export const calculateOutdoorPercentage = (buttonStatus: Record<string, Warehous
   
   if (outdoorSections.length === 0) return 0;
 
-  const outdoorGreen = outdoorSections.filter(([, status]) => status === 'green').length;
-  return (outdoorGreen / outdoorSections.length) * 100;
+  const outdoorRed = outdoorSections.filter(([, status]) => status === 'red').length;
+  return (outdoorRed / outdoorSections.length) * 100;
 };
 
 export const getWarehouseAverageStatus = (warehouseLetter: string, buttonStatus: Record<string, WarehouseStatus>): WarehouseStatus => {

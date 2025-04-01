@@ -147,15 +147,15 @@ export default function Home() {
   };
 
   const calculateUtilization = (letter: string) => {
-    type UtilizationValue = 0 | 50 | 75 | 100;
+    type UtilizationValue = 0 | 25 | 50 | 75 | 100;
     const sections = Object.entries(buttonStatus)
       .filter(([key]) => key.startsWith(letter))
       .map(([, status]) => {
         switch (status) {
-          case 'green': return 100 as UtilizationValue
-          case 'yellow': return 75 as UtilizationValue
+          case 'green': return 0 as UtilizationValue
+          case 'yellow': return 25 as UtilizationValue
           case 'orange': return 50 as UtilizationValue
-          case 'red': return 0 as UtilizationValue
+          case 'red': return 100 as UtilizationValue
           default: return 0 as UtilizationValue
         }
       })
