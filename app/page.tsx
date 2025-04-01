@@ -5,9 +5,9 @@ import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { WarehouseItem } from "@/components/WarehouseItem";
 import { WarehouseForm } from "@/components/WarehouseForm";
 import { useWarehouses } from "@/app/hooks/useWarehouses";
-import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "@/utils/warehouse-utils";
 import type { WarehouseStatus } from '@/types/database';
 import { PieChartComponent } from "@/components/ui/pie-chart";
+import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "./utils/warehouse-utils";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
