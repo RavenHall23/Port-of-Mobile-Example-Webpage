@@ -8,6 +8,7 @@ import { useWarehouses } from "@/app/hooks/useWarehouses";
 import type { WarehouseStatus } from '@/types/database';
 import { PieChartComponent } from "@/components/ui/pie-chart";
 import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "./utils/warehouse-utils";
+import Image from 'next/image'
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -100,11 +101,8 @@ export default function Home() {
 
   const handleButtonClick = async (warehouse: string, sectionNumber: number) => {
     const buttonKey = `${warehouse}${sectionNumber}`;
-    const statusOrder: WarehouseStatus[] = ["green", "yellow", "orange", "red"];
     const currentStatus = buttonStatus[buttonKey];
-    const currentIndex = currentStatus ? statusOrder.indexOf(currentStatus) : -1;
-    const nextIndex = (currentIndex + 1) % statusOrder.length;
-    const nextStatus = statusOrder[nextIndex];
+    const nextStatus = currentStatus === 'green' ? 'red' : 'green';
 
     await updateSectionStatus(warehouse, sectionNumber, nextStatus);
   };
@@ -147,14 +145,12 @@ export default function Home() {
   };
 
   const calculateUtilization = (letter: string) => {
-    type UtilizationValue = 0 | 25 | 50 | 75 | 100;
+    type UtilizationValue = 0 | 100;
     const sections = Object.entries(buttonStatus)
       .filter(([key]) => key.startsWith(letter))
       .map(([, status]) => {
         switch (status) {
           case 'green': return 0 as UtilizationValue
-          case 'yellow': return 25 as UtilizationValue
-          case 'orange': return 50 as UtilizationValue
           case 'red': return 100 as UtilizationValue
           default: return 0 as UtilizationValue
         }
@@ -237,9 +233,21 @@ export default function Home() {
       </button>
 
       <div className="min-h-screen p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center">
-        <h1 className="text-2xl sm:text-[32pt] font-[family-name:var(--font-geist-mono)] mb-6 sm:mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
-          Port of Mobile Test
-        </h1>
+        <div className="flex flex-col items-center mb-6 sm:mb-12">
+          <div className="relative w-48 sm:w-64 h-12 sm:h-16 mb-6">
+            <Image
+              src="/images/apa-logo-full.png"
+              alt="Alabama Port Authority Logo"
+              fill
+              style={{ objectFit: 'contain' }}
+              priority
+              className="dark:brightness-0 dark:invert"
+            />
+          </div>
+          <h1 className="text-2xl sm:text-[32pt] font-[family-name:var(--font-geist-mono)] bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight text-center">
+            Warehouse Management
+          </h1>
+        </div>
 
         <div className="flex justify-center mb-4 w-full">
           <button
@@ -398,17 +406,15 @@ export default function Home() {
                   return (
                     <div key={sectionNumber} className="relative group">
                       <button
-                        onClick={() =>
-                          handleButtonClick(selectedWarehouse, sectionNumber)
-                        }
+                        onClick={() => handleButtonClick(selectedWarehouse, sectionNumber)}
                         className={`w-full px-6 sm:px-8 py-4 sm:py-6 text-white rounded-lg transition-colors text-xl sm:text-2xl font-semibold ${
-                          status
+                          status && statusColors[status]
                             ? statusColors[status].color
                             : "bg-blue-500 hover:bg-blue-600"
                         }`}
                       >
                         Section {String.fromCharCode(64 + sectionNumber)}
-                        {status && (
+                        {status && statusColors[status] && (
                           <span className="ml-2">
                             ({statusColors[status].percentage})
                           </span>

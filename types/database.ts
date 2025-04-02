@@ -1,5 +1,5 @@
 export type WarehouseType = 'indoor' | 'outdoor'
-export type WarehouseStatus = 'green' | 'yellow' | 'orange' | 'red'
+export type WarehouseStatus = 'green' | 'red'
 
 export interface Warehouse {
   id: string
