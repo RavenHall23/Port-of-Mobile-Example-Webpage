@@ -47,7 +47,6 @@ export function useWarehouses() {
       sectionsData.forEach(section => {
         const warehouse = warehouseData.find(w => w.id === section.warehouse_id);
         if (warehouse) {
-          // Default to 'green' if status is not set
           newButtonStatus[`${warehouse.letter}${section.section_number}`] = section.status || 'green';
         }
       });
@@ -69,8 +68,6 @@ export function useWarehouses() {
   };
 
   const createWarehouse = async (type: WarehouseType, name: string, sections: number) => {
-    if (!supabase) return false;
-    
     try {
       console.log('Starting warehouse creation with:', { type, name, sections });
       
@@ -96,64 +93,37 @@ export function useWarehouses() {
         Math.max(...existingLetters.map(l => l.charCodeAt(0)), 64) + 1
       );
 
-      console.log('Creating warehouse with letter:', nextLetter);
+      // Create warehouse using the API endpoint
+      const response = await fetch('/api/warehouses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          capacity: sections,
+          location: type,
+          letter: nextLetter
+        }),
+      });
 
-      // Create warehouse record
-      const warehouseData = {
-        letter: nextLetter,
-        name,
-        type
-      };
-      console.log('Attempting to insert warehouse:', warehouseData);
-
-      const { data: warehouse, error: warehouseError } = await supabase
-        .from('warehouses')
-        .insert([warehouseData])
-        .select()
-        .single();
-
-      if (warehouseError) {
-        console.error('Warehouse creation error:', warehouseError);
-        console.error('Error details:', JSON.stringify(warehouseError, null, 2));
-        throw new Error(`Failed to create warehouse: ${warehouseError.message}`);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to create warehouse');
       }
 
-      if (!warehouse) {
-        throw new Error('Warehouse was not created successfully');
-      }
+      const { data } = await response.json();
 
-      console.log('Warehouse created successfully:', warehouse);
-
-      // Create sections
-      const sectionsToInsert = Array.from({ length: sections }, (_, i) => ({
-        warehouse_id: warehouse.id,
-        section_number: i + 1,
-        status: 'green' as WarehouseStatus
-      }));
-
-      console.log('Creating sections:', sectionsToInsert);
-
-      const { error: sectionsError } = await supabase
-        .from('warehouse_sections')
-        .insert(sectionsToInsert);
-
-      if (sectionsError) {
-        console.error('Sections creation error:', sectionsError);
-        console.error('Error details:', JSON.stringify(sectionsError, null, 2));
-        throw new Error(`Failed to create sections: ${sectionsError.message}`);
-      }
-
-      console.log('Sections created successfully');
-
-      // Update local state with sorting
+      // Update local state
       const newWarehouse = { 
-        id: warehouse.id, 
+        id: data.id, 
         letter: nextLetter, 
         name,
         type,
-        created_at: warehouse.created_at,
-        updated_at: warehouse.updated_at
+        created_at: data.created_at,
+        updated_at: data.updated_at
       };
+
       if (type === 'indoor') {
         setIndoorWarehouses(prev => sortWarehouses([...prev, newWarehouse]));
       } else {
@@ -167,11 +137,9 @@ export function useWarehouses() {
       }
       setButtonStatus(newStatus);
 
-      console.log('Warehouse creation completed successfully');
       return true;
     } catch (error) {
       console.error('Error creating warehouse:', error);
-      console.error('Error details:', JSON.stringify(error, null, 2));
       throw error;
     }
   };
@@ -205,32 +173,28 @@ export function useWarehouses() {
   }
 
   const removeWarehouse = async (letter: string) => {
-    if (!supabase) return false;
-    
     try {
       // Get the warehouse to remove
-      const { data: warehouse } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('letter', letter)
-        .single();
-
+      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
       if (!warehouse) {
-        console.error('Warehouse not found:', letter);
-        return false;
+        throw new Error('Warehouse not found');
       }
 
-      // Delete sections first
-      await supabase
-        .from('warehouse_sections')
-        .delete()
-        .eq('warehouse_id', warehouse.id);
+      // Delete warehouse using the API endpoint
+      const response = await fetch('/api/warehouses', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: warehouse.id
+        }),
+      });
 
-      // Delete warehouse
-      await supabase
-        .from('warehouses')
-        .delete()
-        .eq('letter', letter);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to delete warehouse');
+      }
 
       // Remove all sections for this warehouse from buttonStatus
       const newButtonStatus = { ...buttonStatus };
