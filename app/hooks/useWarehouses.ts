@@ -47,7 +47,8 @@ export function useWarehouses() {
       sectionsData.forEach(section => {
         const warehouse = warehouseData.find(w => w.id === section.warehouse_id);
         if (warehouse) {
-          newButtonStatus[`${warehouse.letter}${section.section_number}`] = section.status;
+          // Default to 'green' if status is not set
+          newButtonStatus[`${warehouse.letter}${section.section_number}`] = section.status || 'green';
         }
       });
 
@@ -365,13 +366,11 @@ export function useWarehouses() {
     // Calculate percentages for each section
     const calculateSectionPercentage = (status: WarehouseStatus) => {
       switch (status) {
-        case 'green': return 100
-        case 'yellow': return 75
-        case 'orange': return 50
-        case 'red': return 0
-        default: return 0
+        case 'green': return 0;
+        case 'red': return 100;
+        default: return 0;
       }
-    }
+    };
 
     // Calculate warehouse type statistics
     const calculateWarehouseStats = (warehouses: Warehouse[]) => {
@@ -473,27 +472,40 @@ export function useWarehouses() {
     // Legend
     const legendY = summaryY + 35
     doc.text('Status Legend:', 14, legendY)
-    doc.text('Green (100%): Available', 14, legendY + 7)
-    doc.text('Yellow (75%): Partially Available', 14, legendY + 14)
-    doc.text('Orange (50%): Limited Availability', 14, legendY + 21)
-    doc.text('Red (0%): Not Available', 14, legendY + 28)
+    doc.text('Green (0%): Available', 14, legendY + 7)
+    doc.text('Red (100%): Not Available', 14, legendY + 14)
 
     // Download the PDF
     doc.save(`warehouse-status-${date.toISOString().replace(/[:.]/g, '-')}.pdf`)
   }
 
   const addSections = async (warehouseLetter: string, numberOfSections: number) => {
-    if (!supabase) return false;
+    if (!supabase) {
+      console.error('Supabase client not initialized');
+      return false;
+    }
     
     try {
+      console.log('Starting to add sections:', { warehouseLetter, numberOfSections });
+      
       // Get the current warehouse
-      const { data: warehouse } = await supabase
+      const { data: warehouse, error: warehouseError } = await supabase
         .from('warehouses')
         .select('*')
         .eq('letter', warehouseLetter)
         .single();
 
-      if (!warehouse) return false;
+      if (warehouseError) {
+        console.error('Error fetching warehouse:', warehouseError);
+        return false;
+      }
+
+      if (!warehouse) {
+        console.error('Warehouse not found:', warehouseLetter);
+        return false;
+      }
+
+      console.log('Found warehouse:', warehouse);
 
       // Get the current highest section number
       const existingSections = Object.keys(buttonStatus)
@@ -501,6 +513,7 @@ export function useWarehouses() {
         .map(key => parseInt(key.slice(1)));
       
       const highestSectionNumber = Math.max(0, ...existingSections);
+      console.log('Current highest section number:', highestSectionNumber);
 
       // Create new sections starting from the next number
       const sectionsToInsert = Array.from(
@@ -512,18 +525,19 @@ export function useWarehouses() {
         })
       );
 
+      console.log('Sections to insert:', sectionsToInsert);
+
       // Insert new sections
       const { error: sectionsError } = await supabase
         .from('warehouse_sections')
         .insert(sectionsToInsert);
 
-      if (sectionsError) throw sectionsError;
+      if (sectionsError) {
+        console.error('Error inserting sections:', sectionsError);
+        throw sectionsError;
+      }
 
-      // Update warehouse with new total sections
-      await supabase
-        .from('warehouses')
-        .update({ sections: warehouse.sections + numberOfSections })
-        .eq('letter', warehouseLetter);
+      console.log('Successfully inserted sections');
 
       // Update button status
       const newButtonStatus = { ...buttonStatus };
@@ -536,6 +550,10 @@ export function useWarehouses() {
       return true;
     } catch (error) {
       console.error('Error adding sections:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       return false;
     }
   };
@@ -559,4 +577,4 @@ export function useWarehouses() {
     addSections,
     clearRemovedSections
   }
-} 
+}
