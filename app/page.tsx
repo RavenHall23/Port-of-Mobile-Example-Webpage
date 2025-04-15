@@ -96,7 +96,7 @@ export default function Home() {
           <div className="w-full max-w-md bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
           <PieChartComponent
             data={pieChartData}
-              tooltipFormatter={tooltipFormatter}
+            tooltipFormatter={tooltipFormatter}
               centerValue={overallUtilization.toFixed(1)}
             centerLabel="Overall Utilization"
               title="Warehouse Utilization"
@@ -164,9 +164,9 @@ export default function Home() {
           {indoorOpen && (
             <div className="space-y-2">
               {indoorWarehouses.map((warehouse) => (
-                <WarehouseItem
-                  key={warehouse.letter}
-                  warehouse={warehouse}
+                    <WarehouseItem
+                      key={warehouse.letter}
+                      warehouse={warehouse}
                   isSelected={false}
                   utilization={calculateUtilization(warehouse.letter)}
                   onRemove={async () => {
