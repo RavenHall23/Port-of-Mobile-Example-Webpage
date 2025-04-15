@@ -2,14 +2,12 @@
 
 import { Warehouse } from '@/types/database';
 import { Button } from '@/components/ui/button';
-import { statusColors } from '@/utils/warehouse-utils';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useWarehouses } from '@/app/hooks/useWarehouses';
-import { PlusIcon, TrashIcon, PencilIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
 import { PieChartComponent } from '@/components/ui/pie-chart';
 import { ThemeToggle } from './ThemeToggle';
-import { useRouter } from 'next/navigation';
 
 interface WarehouseDetailsProps {
   warehouse: Warehouse;
@@ -21,8 +19,6 @@ export function WarehouseDetails({ warehouse }: WarehouseDetailsProps) {
   const [showRemoveModal, setShowRemoveModal] = useState(false);
   const [showRenameModal, setShowRenameModal] = useState(false);
   const [newSectionsCount, setNewSectionsCount] = useState(1);
-  const [addingSections, setAddingSections] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const {
     buttonStatus,
     updateSectionStatus,
@@ -45,13 +41,11 @@ export function WarehouseDetails({ warehouse }: WarehouseDetailsProps) {
 
   const handleAddSections = async () => {
     try {
-      setError(null);
       await addSections(warehouse.letter, newSectionsCount);
       setShowAddModal(false);
       setNewSectionsCount(1);
     } catch (err) {
       console.error('Error adding sections:', err);
-      setError(err instanceof Error ? err.message : 'Failed to add sections');
     }
   };
 
@@ -67,7 +61,7 @@ export function WarehouseDetails({ warehouse }: WarehouseDetailsProps) {
       .filter(([key]) => key.startsWith(warehouse.letter));
     const totalSections = sections.length;
     const usedSections = sections
-      .filter(([_, status]) => status === 'red')
+      .filter(([, status]) => status === 'red')
       .length;
     const availableSections = totalSections - usedSections;
 
@@ -214,9 +208,8 @@ export function WarehouseDetails({ warehouse }: WarehouseDetailsProps) {
                 </Button>
                 <Button 
                   onClick={handleAddSections}
-                  disabled={addingSections}
                 >
-                  {addingSections ? 'Adding...' : 'Add Sections'}
+                  Add Sections
                 </Button>
               </div>
             </div>
