@@ -100,7 +100,7 @@ export function useWarehouses() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name,
+        name,
           capacity: sections,
           location: type,
           letter: nextLetter
@@ -180,6 +180,22 @@ export function useWarehouses() {
         throw new Error('Warehouse not found');
       }
 
+      // Update local state immediately
+      if (warehouse.type === 'indoor') {
+        setIndoorWarehouses(prev => prev.filter(w => w.letter !== letter));
+      } else {
+        setOutdoorWarehouses(prev => prev.filter(w => w.letter !== letter));
+      }
+
+      // Remove all sections for this warehouse from buttonStatus
+      const newButtonStatus = { ...buttonStatus };
+      Object.keys(newButtonStatus).forEach(key => {
+        if (key.startsWith(letter)) {
+          delete newButtonStatus[key];
+        }
+      });
+      setButtonStatus(newButtonStatus);
+      
       // Delete warehouse using the API endpoint
       const response = await fetch('/api/warehouses', {
         method: 'DELETE',
@@ -196,19 +212,11 @@ export function useWarehouses() {
         throw new Error(error.message || 'Failed to delete warehouse');
       }
 
-      // Remove all sections for this warehouse from buttonStatus
-      const newButtonStatus = { ...buttonStatus };
-      Object.keys(newButtonStatus).forEach(key => {
-        if (key.startsWith(letter)) {
-          delete newButtonStatus[key];
-        }
-      });
-      setButtonStatus(newButtonStatus);
-      
-      await fetchWarehouses();
       return true;
     } catch (error) {
       console.error('Error removing warehouse:', error);
+      // Revert local state changes if the API call fails
+      await fetchWarehouses();
       return false;
     }
   };
@@ -217,51 +225,40 @@ export function useWarehouses() {
     if (!supabase) return false;
     
     try {
-      // Get the current warehouse
-      const { data: warehouse } = await supabase
-        .from('warehouses')
-        .select('*')
-        .eq('letter', warehouseLetter)
-        .single();
+      // Find the warehouse by letter
+      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === warehouseLetter);
+      if (!warehouse) throw new Error('Warehouse not found');
 
-      if (!warehouse) return false;
+      // Update local state immediately
+      const newButtonStatus = { ...buttonStatus };
+      delete newButtonStatus[`${warehouseLetter}${sectionNumber}`];
+      setButtonStatus(newButtonStatus);
 
-      // Store the section's current status before removal
-      const currentStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
-      
-      // Save the removed section info for potential undo
-      setRemovedSections(prev => [
-        {
+      // Add to removed sections for undo functionality
+      const removedStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
+      if (removedStatus) {
+        setRemovedSections(prev => [...prev, {
           warehouseLetter,
           sectionNumber,
-          status: currentStatus || 'green',
+          status: removedStatus,
           timestamp: Date.now()
-        },
-        ...prev.slice(0, 9) // Keep only the 10 most recent removals
-      ]);
+        }]);
+      }
 
-      // Delete the specific section from warehouse_sections
-      await supabase
+      // Delete section from database
+      const { error } = await supabase
         .from('warehouse_sections')
         .delete()
         .eq('warehouse_id', warehouse.id)
         .eq('section_number', sectionNumber);
 
-      // Update the warehouse with one less section
-      await supabase
-        .from('warehouses')
-        .update({ sections: warehouse.sections - 1 })
-        .eq('letter', warehouseLetter);
+      if (error) throw error;
 
-      // Remove the section from buttonStatus
-      const newButtonStatus = { ...buttonStatus };
-      delete newButtonStatus[`${warehouseLetter}${sectionNumber}`];
-
-      setButtonStatus(newButtonStatus);
-      await fetchWarehouses();
       return true;
     } catch (error) {
       console.error('Error removing section:', error);
+      // Revert local state changes if the API call fails
+      await fetchWarehouses();
       return false;
     }
   };
