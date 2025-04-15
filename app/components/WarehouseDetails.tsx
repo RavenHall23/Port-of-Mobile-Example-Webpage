@@ -158,7 +158,6 @@ export function WarehouseDetails({ warehouse }: WarehouseDetailsProps) {
                 })
                 .map(([key, status]) => {
                   const sectionNumber = parseInt(key.slice(1));
-                  const utilization = status === 'green' ? 0 : 100;
                   const bgColor = status === 'green' ? '#22c55e' : '#ef4444';
                   
                   return (
