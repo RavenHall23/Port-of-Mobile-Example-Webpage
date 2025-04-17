@@ -8,6 +8,7 @@ import { useWarehouses } from "@/app/hooks/useWarehouses";
 import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "@/utils/warehouse-utils";
 import type { WarehouseStatus } from '@/types/database';
 import { PieChartComponent } from "@/components/ui/pie-chart";
+import { DraggableGrid } from "@/components/DraggableGrid";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -509,40 +510,23 @@ export default function Home() {
                 Add Sections
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(buttonStatus)
-                .filter(([key]) => key.startsWith(selectedWarehouse))
-                .map(([key, status]) => {
-                  const sectionNumber = key.replace(selectedWarehouse, '');
-                  return (
-                    <div key={key} className="relative group">
-                      <button
-                        onClick={() =>
-                          handleButtonClick(selectedWarehouse, parseInt(sectionNumber))
-                        }
-                        className={`w-full px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
-                          status && statusColors[status] 
-                            ? statusColors[status].color 
-                            : "bg-blue-500 hover:bg-blue-600"
-                        }`}
-                      >
-                        Section {sectionNumber}
-                        {status && statusColors[status] && (
-                          <span className="ml-2">
-                            ({statusColors[status].percentage})
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveSection(selectedWarehouse, parseInt(sectionNumber))}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
-                        title="Remove section"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
+            <div className="flex justify-center">
+              <DraggableGrid
+                sections={Object.entries(buttonStatus)
+                  .filter(([key]) => key.startsWith(selectedWarehouse))
+                  .map(([key, status]) => ({
+                    key,
+                    status,
+                    sectionNumber: key.replace(selectedWarehouse, '')
+                  }))}
+                onSectionMove={(sectionId, position) => {
+                  console.log('Section moved:', sectionId, position);
+                }}
+                onStatusChange={(sectionId, status) => {
+                  const sectionNumber = parseInt(sectionId.replace(selectedWarehouse, ''));
+                  handleButtonClick(selectedWarehouse, sectionNumber);
+                }}
+              />
             </div>
           </div>
         )}
