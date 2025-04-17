@@ -163,13 +163,14 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   const gridSize = 100; // Size of each grid cell in pixels
   const [gridWidth, setGridWidth] = useState(7); // Number of cells horizontally (7 columns)
   const [gridHeight, setGridHeight] = useState(6); // Number of cells vertically (6 rows)
+  const [middleColumnIndex, setMiddleColumnIndex] = useState(3); // Index of the middle column (0-based)
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
     if (!initialized) {
-      // Initialize section positions with the middle column (column 3) being empty
+      // Initialize section positions with the middle column being empty
       setSectionStates(
         sections.map((section, index) => {
           // Calculate position with middle column being empty
@@ -177,7 +178,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           let y = Math.floor(index / (gridWidth - 1));
           
           // Adjust x position to skip the middle column
-          if (x >= 3) {
+          if (x >= middleColumnIndex) {
             x += 1; // Shift positions after the middle column
           }
           
@@ -204,8 +205,8 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             // Find the first available position, skipping the middle column
             for (let y = 0; y < gridHeight; y++) {
               for (let x = 0; x < gridWidth; x++) {
-                // Skip the middle column (x = 3)
-                if (x === 3) continue;
+                // Skip the middle column
+                if (x === middleColumnIndex) continue;
                 
                 if (!usedPositions.has(`${x},${y}`)) {
                   position = { x, y };
@@ -226,11 +227,32 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         return [...prevStates, ...newSections];
       });
     }
-  }, [sections, initialized, gridWidth, gridHeight]);
+  }, [sections, initialized, gridWidth, gridHeight, middleColumnIndex]);
+
+  // Update section positions when the middle column index changes
+  useEffect(() => {
+    if (initialized) {
+      setSectionStates(prevStates => {
+        return prevStates.map(section => {
+          const { x, y } = section.position;
+          
+          // If the section is to the right of the middle column, adjust its position
+          if (x > middleColumnIndex) {
+            return {
+              ...section,
+              position: { x, y }
+            };
+          }
+          
+          return section;
+        });
+      });
+    }
+  }, [middleColumnIndex, initialized]);
 
   const handleDrop = (sectionId: string, position: Position) => {
     // Prevent dropping in the middle column
-    if (position.x === 3) {
+    if (position.x === middleColumnIndex) {
       return; // Don't allow drops in the middle column
     }
     
@@ -264,19 +286,66 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     }
   };
 
-  const addColumn = () => {
+  const addColumnLeft = () => {
+    // Add a column to the left of the grid
+    setGridWidth(prev => prev + 1);
+    setMiddleColumnIndex(prev => prev + 1);
+    
+    // Shift all sections to the right
+    setSectionStates(prevStates => 
+      prevStates.map(section => {
+        const { x, y } = section.position;
+        return {
+          ...section,
+          position: { x: x + 1, y }
+        };
+      })
+    );
+  };
+
+  const addColumnRight = () => {
+    // Add a column to the right of the grid
     setGridWidth(prev => prev + 1);
   };
 
-  const removeColumn = () => {
+  const removeColumnLeft = () => {
     if (gridWidth > 1) {
-      // Check if any sections are in the last column
-      const sectionsInLastColumn = sectionStates.filter(s => s.position.x === gridWidth - 1);
+      // Check if any sections are in the leftmost column
+      const sectionsInLeftColumn = sectionStates.filter(s => s.position.x === 0);
       
-      if (sectionsInLastColumn.length === 0) {
+      if (sectionsInLeftColumn.length === 0) {
+        // Remove the leftmost column
+        setGridWidth(prev => prev - 1);
+        
+        // Shift all sections to the left
+        setSectionStates(prevStates => 
+          prevStates.map(section => {
+            const { x, y } = section.position;
+            return {
+              ...section,
+              position: { x: x - 1, y }
+            };
+          })
+        );
+        
+        // Adjust the middle column index
+        setMiddleColumnIndex(prev => prev - 1);
+      } else {
+        alert("Cannot remove column: There are sections in the leftmost column. Please move them first.");
+      }
+    }
+  };
+
+  const removeColumnRight = () => {
+    if (gridWidth > 1) {
+      // Check if any sections are in the rightmost column
+      const sectionsInRightColumn = sectionStates.filter(s => s.position.x === gridWidth - 1);
+      
+      if (sectionsInRightColumn.length === 0) {
+        // Remove the rightmost column
         setGridWidth(prev => prev - 1);
       } else {
-        alert("Cannot remove column: There are sections in the last column. Please move them first.");
+        alert("Cannot remove column: There are sections in the rightmost column. Please move them first.");
       }
     }
   };
@@ -300,24 +369,45 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-6 flex space-x-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+      <div className="mb-6 flex flex-wrap gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
         <div className="flex items-center space-x-3">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Columns:</span>
           <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
-            <button 
-              onClick={removeColumn}
-              className="px-3 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={gridWidth <= 1}
-            >
-              -
-            </button>
+            <div className="flex">
+              <button 
+                onClick={removeColumnLeft}
+                className="px-2 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors border-r border-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={gridWidth <= 1}
+                title="Remove column from left"
+              >
+                ←
+              </button>
+              <button 
+                onClick={removeColumnRight}
+                className="px-2 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={gridWidth <= 1}
+                title="Remove column from right"
+              >
+                →
+              </button>
+            </div>
             <span className="w-10 text-center font-medium">{gridWidth}</span>
-            <button 
-              onClick={addColumn}
-              className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors"
-            >
-              +
-            </button>
+            <div className="flex">
+              <button 
+                onClick={addColumnLeft}
+                className="px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors border-r border-green-600"
+                title="Add column to left"
+              >
+                ←
+              </button>
+              <button 
+                onClick={addColumnRight}
+                className="px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors"
+                title="Add column to right"
+              >
+                →
+              </button>
+            </div>
           </div>
         </div>
         
@@ -356,7 +446,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             const y = Math.floor(index / gridWidth);
             
             // Highlight the middle column
-            const isMiddleColumn = x === 3;
+            const isMiddleColumn = x === middleColumnIndex;
             
             return (
               <GridCell
@@ -372,7 +462,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           <div 
             className="absolute bg-gray-100 dark:bg-gray-800 border-l-2 border-r-2 border-blue-400 dark:border-blue-500"
             style={{
-              left: `${3 * gridSize}px`,
+              left: `${middleColumnIndex * gridSize}px`,
               top: 0,
               width: `${gridSize}px`,
               height: `${gridHeight * gridSize}px`,
