@@ -20,11 +20,20 @@ interface DraggableSectionProps {
   section: SectionState;
   onMove: (id: string, position: Position) => void;
   onStatusChange: (id: string, status: WarehouseStatus) => void;
+  onDelete: (id: string) => void;
   gridSize: number;
 }
 
-const DraggableSection: React.FC<DraggableSectionProps> = ({ section, onMove, onStatusChange, gridSize }) => {
+const DraggableSection: React.FC<DraggableSectionProps> = ({ 
+  section, 
+  onMove, 
+  onStatusChange, 
+  onDelete,
+  gridSize 
+}) => {
   const ref = useRef<HTMLDivElement>(null);
+  const [showDeleteButton, setShowDeleteButton] = useState(false);
+  
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'section',
     item: { id: section.id, position: section.position },
@@ -41,8 +50,21 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({ section, onMove, on
     onStatusChange(section.id, newStatus);
   };
 
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the status change
+    onDelete(section.id);
+  };
+
+  const handleMouseEnter = () => {
+    setShowDeleteButton(true);
+  };
+
+  const handleMouseLeave = () => {
+    setShowDeleteButton(false);
+  };
+
   // Calculate position with margin to prevent overlap with grid lines
-  const margin = 4; // 4px margin on each side
+  const margin = 6; // 6px margin on each side
   const sectionSize = gridSize - (margin * 2);
 
   return (
@@ -57,6 +79,8 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({ section, onMove, on
         transition: 'all 0.2s ease',
         zIndex: 20,
       }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       <button
         onClick={handleClick}
@@ -66,6 +90,15 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({ section, onMove, on
       >
         {section.number}
       </button>
+      {showDeleteButton && (
+        <button
+          onClick={handleDelete}
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
+          title="Delete section"
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 };
@@ -95,8 +128,8 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
   return (
     <div
       ref={ref}
-      className={`absolute border-2 border-gray-700 dark:border-gray-600 ${
-        isOver ? 'bg-gray-100 dark:bg-gray-800' : ''
+      className={`absolute border border-gray-300 dark:border-gray-600 ${
+        isOver ? 'bg-gray-50 dark:bg-gray-800' : ''
       }`}
       style={{
         left: `${position.x * gridSize}px`,
@@ -117,19 +150,24 @@ interface DraggableGridProps {
   }>;
   onSectionMove: (sectionId: string, position: Position) => void;
   onStatusChange: (sectionId: string, status: WarehouseStatus) => void;
+  onSectionDelete?: (sectionId: string) => void;
+  className?: string;
 }
 
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
   sections,
   onSectionMove,
   onStatusChange,
+  onSectionDelete,
+  className = '',
 }) => {
   const gridSize = 100; // Size of each grid cell in pixels
-  const gridWidth = 8; // Number of cells horizontally
-  const gridHeight = 6; // Number of cells vertically
+  const [gridWidth, setGridWidth] = useState(8); // Number of cells horizontally
+  const [gridHeight, setGridHeight] = useState(6); // Number of cells vertically
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!initialized) {
@@ -179,7 +217,32 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         return [...prevStates, ...newSections];
       });
     }
-  }, [sections, initialized]);
+  }, [sections, initialized, gridWidth, gridHeight]);
+
+  // Add event listeners for custom events
+  useEffect(() => {
+    const handleAddColumn = () => addColumn();
+    const handleRemoveColumn = () => removeColumn();
+    const handleAddRow = () => addRow();
+    const handleRemoveRow = () => removeRow();
+
+    const gridElement = gridRef.current;
+    if (gridElement) {
+      gridElement.addEventListener('addColumn', handleAddColumn);
+      gridElement.addEventListener('removeColumn', handleRemoveColumn);
+      gridElement.addEventListener('addRow', handleAddRow);
+      gridElement.addEventListener('removeRow', handleRemoveRow);
+    }
+
+    return () => {
+      if (gridElement) {
+        gridElement.removeEventListener('addColumn', handleAddColumn);
+        gridElement.removeEventListener('removeColumn', handleRemoveColumn);
+        gridElement.removeEventListener('addRow', handleAddRow);
+        gridElement.removeEventListener('removeRow', handleRemoveRow);
+      }
+    };
+  }, []);
 
   const handleDrop = (sectionId: string, position: Position) => {
     // Update the section's position in the state
@@ -202,39 +265,86 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     onStatusChange(sectionId, status);
   };
 
-  return (
-    <DndProvider backend={HTML5Backend}>
-      <div
-        className="relative bg-white dark:bg-gray-900"
-        style={{
-          width: `${gridWidth * gridSize}px`,
-          height: `${gridHeight * gridSize}px`,
-        }}
-      >
-        {/* Grid cells */}
-        {Array.from({ length: gridWidth * gridHeight }).map((_, index) => (
-          <GridCell
-            key={index}
-            position={{
-              x: index % gridWidth,
-              y: Math.floor(index / gridWidth),
-            }}
-            onDrop={handleDrop}
-            gridSize={gridSize}
-          />
-        ))}
+  const handleDelete = (sectionId: string) => {
+    // Remove the section from the state
+    setSectionStates((prev) => prev.filter((section) => section.id !== sectionId));
+    
+    // Notify parent component about the deletion if callback is provided
+    if (onSectionDelete) {
+      onSectionDelete(sectionId);
+    }
+  };
 
-        {/* Draggable sections */}
-        {sectionStates.map((section) => (
-          <DraggableSection
-            key={section.id}
-            section={section}
-            onMove={handleDrop}
-            onStatusChange={handleStatusChange}
-            gridSize={gridSize}
-          />
-        ))}
-      </div>
-    </DndProvider>
+  const addColumn = () => {
+    setGridWidth(prev => prev + 1);
+  };
+
+  const removeColumn = () => {
+    if (gridWidth > 1) {
+      // Check if any sections are in the last column
+      const sectionsInLastColumn = sectionStates.filter(s => s.position.x === gridWidth - 1);
+      
+      if (sectionsInLastColumn.length === 0) {
+        setGridWidth(prev => prev - 1);
+      } else {
+        alert("Cannot remove column: There are sections in the last column. Please move them first.");
+      }
+    }
+  };
+
+  const addRow = () => {
+    setGridHeight(prev => prev + 1);
+  };
+
+  const removeRow = () => {
+    if (gridHeight > 1) {
+      // Check if any sections are in the last row
+      const sectionsInLastRow = sectionStates.filter(s => s.position.y === gridHeight - 1);
+      
+      if (sectionsInLastRow.length === 0) {
+        setGridHeight(prev => prev - 1);
+      } else {
+        alert("Cannot remove row: There are sections in the last row. Please move them first.");
+      }
+    }
+  };
+
+  return (
+    <div className={`flex flex-col items-center ${className}`} ref={gridRef}>
+      <DndProvider backend={HTML5Backend}>
+        <div
+          className="relative bg-white dark:bg-gray-900 rounded-xl shadow-lg p-4 border border-gray-300 dark:border-gray-600"
+          style={{
+            width: `${gridWidth * gridSize + 8}px`,
+            height: `${gridHeight * gridSize + 8}px`,
+          }}
+        >
+          {/* Grid cells */}
+          {Array.from({ length: gridWidth * gridHeight }).map((_, index) => (
+            <GridCell
+              key={index}
+              position={{
+                x: index % gridWidth,
+                y: Math.floor(index / gridWidth),
+              }}
+              onDrop={handleDrop}
+              gridSize={gridSize}
+            />
+          ))}
+
+          {/* Draggable sections */}
+          {sectionStates.map((section) => (
+            <DraggableSection
+              key={section.id}
+              section={section}
+              onMove={handleDrop}
+              onStatusChange={handleStatusChange}
+              onDelete={handleDelete}
+              gridSize={gridSize}
+            />
+          ))}
+        </div>
+      </DndProvider>
+    </div>
   );
 }; 

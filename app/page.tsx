@@ -489,26 +489,86 @@ export default function Home() {
               <h2 className="text-2xl font-bold">
                 {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
               </h2>
-              <button
-                onClick={() => setShowAddSectionsModal(true)}
-                className="group px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:translate-y-[-1px]"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
+              <div className="flex flex-col items-end">
+                <button
+                  onClick={() => setShowAddSectionsModal(true)}
+                  className="group px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:translate-y-[-1px] mb-2"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
-                  />
-                </svg>
-                Add Sections
-              </button>
+                  <svg 
+                    xmlns="http://www.w3.org/2000/svg" 
+                    className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path 
+                      strokeLinecap="round" 
+                      strokeLinejoin="round" 
+                      strokeWidth={2} 
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                    />
+                  </svg>
+                  Add Sections
+                </button>
+                
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium">Columns:</span>
+                    <button 
+                      onClick={() => {
+                        const grid = document.querySelector('.draggable-grid');
+                        if (grid) {
+                          const event = new CustomEvent('addColumn');
+                          grid.dispatchEvent(event);
+                        }
+                      }}
+                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                    >
+                      +
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const grid = document.querySelector('.draggable-grid');
+                        if (grid) {
+                          const event = new CustomEvent('removeColumn');
+                          grid.dispatchEvent(event);
+                        }
+                      }}
+                      className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                    >
+                      -
+                    </button>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium">Rows:</span>
+                    <button 
+                      onClick={() => {
+                        const grid = document.querySelector('.draggable-grid');
+                        if (grid) {
+                          const event = new CustomEvent('addRow');
+                          grid.dispatchEvent(event);
+                        }
+                      }}
+                      className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                    >
+                      +
+                    </button>
+                    <button 
+                      onClick={() => {
+                        const grid = document.querySelector('.draggable-grid');
+                        if (grid) {
+                          const event = new CustomEvent('removeRow');
+                          grid.dispatchEvent(event);
+                        }
+                      }}
+                      className="px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                    >
+                      -
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="flex justify-center">
               <DraggableGrid
@@ -526,6 +586,7 @@ export default function Home() {
                   const sectionNumber = parseInt(sectionId.replace(selectedWarehouse, ''));
                   handleButtonClick(selectedWarehouse, sectionNumber);
                 }}
+                className="draggable-grid"
               />
             </div>
           </div>
