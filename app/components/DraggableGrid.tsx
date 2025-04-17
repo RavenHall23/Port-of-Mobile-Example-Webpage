@@ -64,19 +64,19 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   };
 
   // Calculate position with margin to prevent overlap with grid lines
-  const margin = 6; // 6px margin on each side
+  const margin = 4; // 4px margin on each side
   const sectionSize = gridSize - (margin * 2);
 
   return (
     <div
       ref={ref}
-      className={`absolute cursor-move ${isDragging ? 'opacity-50' : ''}`}
+      className={`absolute cursor-move ${isDragging ? 'opacity-50 scale-105' : ''}`}
       style={{
         left: `${section.position.x * gridSize + margin}px`,
         top: `${section.position.y * gridSize + margin}px`,
         width: `${sectionSize}px`,
         height: `${sectionSize}px`,
-        transition: 'all 0.2s ease',
+        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
         zIndex: 20,
       }}
       onMouseEnter={handleMouseEnter}
@@ -84,7 +84,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
     >
       <button
         onClick={handleClick}
-        className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-md hover:shadow-lg transition-all ${
+        className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 ${
           statusColors[section.status].color
         }`}
       >
@@ -93,7 +93,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       {showDeleteButton && (
         <button
           onClick={handleDelete}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-colors"
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform hover:scale-110 animate-fadeIn"
           title="Delete section"
         >
           ×
@@ -128,8 +128,8 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
   return (
     <div
       ref={ref}
-      className={`absolute border border-gray-300 dark:border-gray-600 ${
-        isOver ? 'bg-gray-50 dark:bg-gray-800' : ''
+      className={`absolute border border-gray-200 dark:border-gray-700 ${
+        isOver ? 'bg-gray-100 dark:bg-gray-800 ring-2 ring-blue-400 dark:ring-blue-500' : ''
       }`}
       style={{
         left: `${position.x * gridSize}px`,
@@ -137,6 +137,7 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
         width: `${gridSize}px`,
         height: `${gridSize}px`,
         zIndex: 10,
+        transition: 'all 0.2s ease',
       }}
     />
   );
@@ -151,7 +152,6 @@ interface DraggableGridProps {
   onSectionMove: (sectionId: string, position: Position) => void;
   onStatusChange: (sectionId: string, status: WarehouseStatus) => void;
   onSectionDelete?: (sectionId: string) => void;
-  className?: string;
 }
 
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
@@ -159,29 +159,35 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onSectionMove,
   onStatusChange,
   onSectionDelete,
-  className = '',
 }) => {
   const gridSize = 100; // Size of each grid cell in pixels
-  const [gridWidth, setGridWidth] = useState(8); // Number of cells horizontally
-  const [gridHeight, setGridHeight] = useState(6); // Number of cells vertically
+  const [gridWidth, setGridWidth] = useState(7); // Number of cells horizontally (7 columns)
+  const [gridHeight, setGridHeight] = useState(6); // Number of cells vertically (6 rows)
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
-  const gridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!initialized) {
-      // Initialize section positions only once
+      // Initialize section positions with the middle column (column 3) being empty
       setSectionStates(
-        sections.map((section, index) => ({
-          id: section.key,
-          position: {
-            x: index % gridWidth,
-            y: Math.floor(index / gridWidth),
-          },
-          status: section.status,
-          number: section.sectionNumber,
-        }))
+        sections.map((section, index) => {
+          // Calculate position with middle column being empty
+          let x = index % (gridWidth - 1); // Use gridWidth - 1 to account for empty column
+          let y = Math.floor(index / (gridWidth - 1));
+          
+          // Adjust x position to skip the middle column
+          if (x >= 3) {
+            x += 1; // Shift positions after the middle column
+          }
+          
+          return {
+            id: section.key,
+            position: { x, y },
+            status: section.status,
+            number: section.sectionNumber,
+          };
+        })
       );
       setInitialized(true);
     } else {
@@ -191,13 +197,16 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         const newSections = sections
           .filter(section => !existingIds.has(section.key))
           .map((section, index) => {
-            // Find an empty position for the new section
+            // Find an empty position for the new section, avoiding the middle column
             const usedPositions = new Set(prevStates.map(s => `${s.position.x},${s.position.y}`));
             let position = { x: 0, y: 0 };
             
-            // Find the first available position
+            // Find the first available position, skipping the middle column
             for (let y = 0; y < gridHeight; y++) {
               for (let x = 0; x < gridWidth; x++) {
+                // Skip the middle column (x = 3)
+                if (x === 3) continue;
+                
                 if (!usedPositions.has(`${x},${y}`)) {
                   position = { x, y };
                   break;
@@ -219,32 +228,12 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     }
   }, [sections, initialized, gridWidth, gridHeight]);
 
-  // Add event listeners for custom events
-  useEffect(() => {
-    const handleAddColumn = () => addColumn();
-    const handleRemoveColumn = () => removeColumn();
-    const handleAddRow = () => addRow();
-    const handleRemoveRow = () => removeRow();
-
-    const gridElement = gridRef.current;
-    if (gridElement) {
-      gridElement.addEventListener('addColumn', handleAddColumn);
-      gridElement.addEventListener('removeColumn', handleRemoveColumn);
-      gridElement.addEventListener('addRow', handleAddRow);
-      gridElement.addEventListener('removeRow', handleRemoveRow);
-    }
-
-    return () => {
-      if (gridElement) {
-        gridElement.removeEventListener('addColumn', handleAddColumn);
-        gridElement.removeEventListener('removeColumn', handleRemoveColumn);
-        gridElement.removeEventListener('addRow', handleAddRow);
-        gridElement.removeEventListener('removeRow', handleRemoveRow);
-      }
-    };
-  }, []);
-
   const handleDrop = (sectionId: string, position: Position) => {
+    // Prevent dropping in the middle column
+    if (position.x === 3) {
+      return; // Don't allow drops in the middle column
+    }
+    
     // Update the section's position in the state
     setSectionStates((prev) =>
       prev.map((section) =>
@@ -310,27 +299,90 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   };
 
   return (
-    <div className={`flex flex-col items-center ${className}`} ref={gridRef}>
+    <div className="flex flex-col items-center">
+      <div className="mb-6 flex space-x-6 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Columns:</span>
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
+            <button 
+              onClick={removeColumn}
+              className="px-3 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={gridWidth <= 1}
+            >
+              -
+            </button>
+            <span className="w-10 text-center font-medium">{gridWidth}</span>
+            <button 
+              onClick={addColumn}
+              className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Rows:</span>
+          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
+            <button 
+              onClick={removeRow}
+              className="px-3 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={gridHeight <= 1}
+            >
+              -
+            </button>
+            <span className="w-10 text-center font-medium">{gridHeight}</span>
+            <button 
+              onClick={addRow}
+              className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors"
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
+      
       <DndProvider backend={HTML5Backend}>
         <div
-          className="relative bg-white dark:bg-gray-900 rounded-xl shadow-lg p-4 border border-gray-300 dark:border-gray-600"
+          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-4"
           style={{
-            width: `${gridWidth * gridSize + 8}px`,
-            height: `${gridHeight * gridSize + 8}px`,
+            width: `${gridWidth * gridSize + 32}px`,
+            height: `${gridHeight * gridSize + 32}px`,
           }}
         >
           {/* Grid cells */}
-          {Array.from({ length: gridWidth * gridHeight }).map((_, index) => (
-            <GridCell
-              key={index}
-              position={{
-                x: index % gridWidth,
-                y: Math.floor(index / gridWidth),
-              }}
-              onDrop={handleDrop}
-              gridSize={gridSize}
-            />
-          ))}
+          {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
+            const x = index % gridWidth;
+            const y = Math.floor(index / gridWidth);
+            
+            // Highlight the middle column
+            const isMiddleColumn = x === 3;
+            
+            return (
+              <GridCell
+                key={index}
+                position={{ x, y }}
+                onDrop={handleDrop}
+                gridSize={gridSize}
+              />
+            );
+          })}
+
+          {/* Middle column indicator */}
+          <div 
+            className="absolute bg-gray-100 dark:bg-gray-800 border-l-2 border-r-2 border-blue-400 dark:border-blue-500"
+            style={{
+              left: `${3 * gridSize}px`,
+              top: 0,
+              width: `${gridSize}px`,
+              height: `${gridHeight * gridSize}px`,
+              zIndex: 5,
+            }}
+          >
+            <div className="flex items-center justify-center h-full">
+              <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">AISLE</span>
+            </div>
+          </div>
 
           {/* Draggable sections */}
           {sectionStates.map((section) => (
