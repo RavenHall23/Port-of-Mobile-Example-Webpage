@@ -16,6 +16,11 @@ interface SectionState {
   number: string;
 }
 
+interface RowLabel {
+  rowIndex: number;
+  label: string;
+}
+
 interface DraggableSectionProps {
   section: SectionState;
   onMove: (id: string, position: Position) => void;
@@ -164,6 +169,10 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   const [gridWidth, setGridWidth] = useState(7); // Number of cells horizontally (7 columns)
   const [gridHeight, setGridHeight] = useState(6); // Number of cells vertically (6 rows)
   const [middleColumnIndex, setMiddleColumnIndex] = useState(3); // Index of the middle column (0-based)
+  const [rowLabels, setRowLabels] = useState<RowLabel[]>([]);
+  const [showAddLabel, setShowAddLabel] = useState(false);
+  const [newLabelRow, setNewLabelRow] = useState<number | null>(null);
+  const [newLabelText, setNewLabelText] = useState('');
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -360,11 +369,58 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       const sectionsInLastRow = sectionStates.filter(s => s.position.y === gridHeight - 1);
       
       if (sectionsInLastRow.length === 0) {
+        // Remove any labels in the last row
+        setRowLabels(prev => prev.filter(label => label.rowIndex < gridHeight - 1));
+        
         setGridHeight(prev => prev - 1);
       } else {
         alert("Cannot remove row: There are sections in the last row. Please move them first.");
       }
     }
+  };
+
+  const handleAddLabel = (rowIndex: number) => {
+    setNewLabelRow(rowIndex);
+    setNewLabelText('');
+    setShowAddLabel(true);
+  };
+
+  const handleSaveLabel = () => {
+    if (newLabelText.trim() !== '' && newLabelRow !== null) {
+      // Check if a label already exists for this row
+      const existingLabelIndex = rowLabels.findIndex(label => label.rowIndex === newLabelRow);
+      
+      if (existingLabelIndex >= 0) {
+        // Update existing label
+        setRowLabels(prev => 
+          prev.map((label, index) => 
+            index === existingLabelIndex 
+              ? { ...label, label: newLabelText } 
+              : label
+          )
+        );
+      } else {
+        // Add new label
+        setRowLabels(prev => [...prev, { rowIndex: newLabelRow, label: newLabelText }]);
+      }
+    }
+    
+    setShowAddLabel(false);
+    setNewLabelRow(null);
+  };
+
+  const handleEditLabel = (rowIndex: number, newLabel: string) => {
+    setRowLabels(prev => 
+      prev.map(label => 
+        label.rowIndex === rowIndex 
+          ? { ...label, label: newLabel } 
+          : label
+      )
+    );
+  };
+
+  const handleDeleteLabel = (rowIndex: number) => {
+    setRowLabels(prev => prev.filter(label => label.rowIndex !== rowIndex));
   };
 
   return (
@@ -430,6 +486,17 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             </button>
           </div>
         </div>
+        
+        <div className="flex items-center space-x-3">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Row Labels:</span>
+          <button 
+            onClick={() => setShowAddLabel(true)}
+            className="px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 transition-colors rounded-md"
+            title="Add row label"
+          >
+            Add Label
+          </button>
+        </div>
       </div>
       
       <DndProvider backend={HTML5Backend}>
@@ -473,6 +540,100 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
               <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">AISLE</span>
             </div>
           </div>
+
+          {/* Row labels */}
+          {rowLabels.map((label) => (
+            <div
+              key={`label-${label.rowIndex}`}
+              className="absolute flex items-center justify-center"
+              style={{
+                left: 0,
+                top: `${(label.rowIndex + 1) * gridSize - 15}px`,
+                width: `${gridWidth * gridSize}px`,
+                height: '30px',
+                zIndex: 15,
+              }}
+            >
+              <div className="flex items-center">
+                <span className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm font-bold px-3 py-1.5 rounded-md shadow-md border border-gray-300 dark:border-gray-600">
+                  {label.label}
+                </span>
+                <div className="flex ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => {
+                      setNewLabelRow(label.rowIndex);
+                      setNewLabelText(label.label);
+                      setShowAddLabel(true);
+                    }}
+                    className="text-blue-500 hover:text-blue-600 text-xs ml-2"
+                    title="Edit label"
+                  >
+                    ✎
+                  </button>
+                  <button
+                    onClick={() => handleDeleteLabel(label.rowIndex)}
+                    className="text-red-500 hover:text-red-600 text-xs ml-1"
+                    title="Delete label"
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Add label UI */}
+          {showAddLabel && (
+            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-80">
+                <h3 className="text-lg font-medium mb-4">Add Row Label</h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Row Position
+                  </label>
+                  <select
+                    value={newLabelRow !== null ? newLabelRow : ''}
+                    onChange={(e) => setNewLabelRow(parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  >
+                    <option value="">Select a row</option>
+                    {Array.from({ length: gridHeight - 1 }).map((_, index) => (
+                      <option key={index} value={index}>
+                        Between Row {index + 1} and {index + 2}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Label Text
+                  </label>
+                  <input
+                    type="text"
+                    value={newLabelText}
+                    onChange={(e) => setNewLabelText(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder="Enter label text"
+                  />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <button
+                    onClick={() => setShowAddLabel(false)}
+                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveLabel}
+                    className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                    disabled={newLabelRow === null || newLabelText.trim() === ''}
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Draggable sections */}
           {sectionStates.map((section) => (
