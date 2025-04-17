@@ -1,23 +1,15 @@
-import type { WarehouseStatus } from '@/types/database'
-
-export const statusColors: Record<WarehouseStatus, { color: string; percentage: string }> = {
+export const statusColors = {
   green: {
     color: 'bg-green-500 hover:bg-green-600',
-    percentage: '100%'
-  },
-  yellow: {
-    color: 'bg-yellow-500 hover:bg-yellow-600',
-    percentage: '75%'
-  },
-  orange: {
-    color: 'bg-orange-500 hover:bg-orange-600',
-    percentage: '50%'
+    percentage: 'Available'
   },
   red: {
     color: 'bg-red-500 hover:bg-red-600',
-    percentage: '25%'
+    percentage: 'Full'
   }
-}
+} as const;
+
+export type WarehouseStatus = keyof typeof statusColors;
 
 export const calculateTotalPercentage = (buttonStatus: Record<string, WarehouseStatus>) => {
   const totalSections = Object.keys(buttonStatus).length;

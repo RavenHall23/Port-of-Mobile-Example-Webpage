@@ -98,15 +98,13 @@ export default function Home() {
     });
   };
 
-  const handleButtonClick = async (warehouse: string, sectionNumber: number) => {
-    const buttonKey = `${warehouse}${sectionNumber}`;
-    const statusOrder: WarehouseStatus[] = ["green", "yellow", "orange", "red"];
-    const currentStatus = buttonStatus[buttonKey];
-    const currentIndex = currentStatus ? statusOrder.indexOf(currentStatus) : -1;
-    const nextIndex = (currentIndex + 1) % statusOrder.length;
-    const nextStatus = statusOrder[nextIndex];
-
-    await updateSectionStatus(warehouse, sectionNumber, nextStatus);
+  const handleButtonClick = async (warehouseLetter: string, sectionNumber: number) => {
+    const currentStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
+    const newStatus = currentStatus === 'green' ? 'red' : 'green';
+    const success = await updateSectionStatus(warehouseLetter, sectionNumber, newStatus);
+    if (!success) {
+      alert('Failed to update section status. Please try again.');
+    }
   };
 
   const handleCreateWarehouse = async (type: 'indoor' | 'outdoor', data: { name: string; sections: number }) => {
@@ -147,14 +145,12 @@ export default function Home() {
   };
 
   const calculateUtilization = (letter: string) => {
-    type UtilizationValue = 0 | 50 | 75 | 100;
+    type UtilizationValue = 0 | 100;
     const sections = Object.entries(buttonStatus)
       .filter(([key]) => key.startsWith(letter))
       .map(([, status]) => {
         switch (status) {
           case 'green': return 100 as UtilizationValue
-          case 'yellow': return 75 as UtilizationValue
-          case 'orange': return 50 as UtilizationValue
           case 'red': return 0 as UtilizationValue
           default: return 0 as UtilizationValue
         }
@@ -517,28 +513,28 @@ export default function Home() {
               {Object.entries(buttonStatus)
                 .filter(([key]) => key.startsWith(selectedWarehouse))
                 .map(([key, status]) => {
-                  const sectionNumber = parseInt(key.slice(1));
+                  const sectionNumber = key.replace(selectedWarehouse, '');
                   return (
-                    <div key={sectionNumber} className="relative group">
+                    <div key={key} className="relative group">
                       <button
                         onClick={() =>
-                          handleButtonClick(selectedWarehouse, sectionNumber)
+                          handleButtonClick(selectedWarehouse, parseInt(sectionNumber))
                         }
                         className={`w-full px-8 py-6 text-white rounded-lg transition-colors text-2xl font-semibold ${
-                          status
-                            ? statusColors[status].color
+                          status && statusColors[status] 
+                            ? statusColors[status].color 
                             : "bg-blue-500 hover:bg-blue-600"
                         }`}
                       >
-                        Section {String.fromCharCode(64 + sectionNumber)}
-                        {status && (
+                        Section {sectionNumber}
+                        {status && statusColors[status] && (
                           <span className="ml-2">
                             ({statusColors[status].percentage})
                           </span>
                         )}
                       </button>
                       <button
-                        onClick={() => handleRemoveSection(selectedWarehouse, sectionNumber)}
+                        onClick={() => handleRemoveSection(selectedWarehouse, parseInt(sectionNumber))}
                         className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
                         title="Remove section"
                       >
