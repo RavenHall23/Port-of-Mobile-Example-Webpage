@@ -545,7 +545,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           {rowLabels.map((label) => (
             <div
               key={`label-${label.rowIndex}`}
-              className="absolute flex items-center justify-center"
+              className="absolute flex items-center justify-center group"
               style={{
                 left: 0,
                 top: `${(label.rowIndex + 1) * gridSize - 15}px`,
