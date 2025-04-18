@@ -133,7 +133,7 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
   return (
     <div
       ref={ref}
-      className={`absolute border border-gray-200 dark:border-gray-700 ${
+      className={`absolute ${
         isOver ? 'bg-gray-100 dark:bg-gray-800 ring-2 ring-blue-400 dark:ring-blue-500' : ''
       }`}
       style={{
@@ -166,13 +166,14 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onSectionDelete,
 }) => {
   const gridSize = 100; // Size of each grid cell in pixels
-  const [gridWidth, setGridWidth] = useState(7); // Number of cells horizontally (7 columns)
-  const [gridHeight, setGridHeight] = useState(6); // Number of cells vertically (6 rows)
-  const [middleColumnIndex, setMiddleColumnIndex] = useState(3); // Index of the middle column (0-based)
+  const [gridWidth, setGridWidth] = useState(15); // Increased initial width
+  const [gridHeight, setGridHeight] = useState(10); // Increased initial height
+  const [middleColumnIndex, setMiddleColumnIndex] = useState(7); // Adjusted middle column index
   const [rowLabels, setRowLabels] = useState<RowLabel[]>([]);
   const [showAddLabel, setShowAddLabel] = useState(false);
   const [newLabelRow, setNewLabelRow] = useState<number | null>(null);
   const [newLabelText, setNewLabelText] = useState('');
+  const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -265,6 +266,25 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       return; // Don't allow drops in the middle column
     }
     
+    // Dynamically expand the grid if needed
+    let newGridWidth = gridWidth;
+    let newGridHeight = gridHeight;
+    
+    if (position.x >= gridWidth) {
+      newGridWidth = position.x + 1;
+    }
+    if (position.y >= gridHeight) {
+      newGridHeight = position.y + 1;
+    }
+    
+    // Update grid dimensions if needed
+    if (newGridWidth > gridWidth) {
+      setGridWidth(newGridWidth);
+    }
+    if (newGridHeight > gridHeight) {
+      setGridHeight(newGridHeight);
+    }
+    
     // Update the section's position in the state
     setSectionStates((prev) =>
       prev.map((section) =>
@@ -292,90 +312,6 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     // Notify parent component about the deletion if callback is provided
     if (onSectionDelete) {
       onSectionDelete(sectionId);
-    }
-  };
-
-  const addColumnLeft = () => {
-    // Add a column to the left of the grid
-    setGridWidth(prev => prev + 1);
-    setMiddleColumnIndex(prev => prev + 1);
-    
-    // Shift all sections to the right
-    setSectionStates(prevStates => 
-      prevStates.map(section => {
-        const { x, y } = section.position;
-        return {
-          ...section,
-          position: { x: x + 1, y }
-        };
-      })
-    );
-  };
-
-  const addColumnRight = () => {
-    // Add a column to the right of the grid
-    setGridWidth(prev => prev + 1);
-  };
-
-  const removeColumnLeft = () => {
-    if (gridWidth > 1) {
-      // Check if any sections are in the leftmost column
-      const sectionsInLeftColumn = sectionStates.filter(s => s.position.x === 0);
-      
-      if (sectionsInLeftColumn.length === 0) {
-        // Remove the leftmost column
-        setGridWidth(prev => prev - 1);
-        
-        // Shift all sections to the left
-        setSectionStates(prevStates => 
-          prevStates.map(section => {
-            const { x, y } = section.position;
-            return {
-              ...section,
-              position: { x: x - 1, y }
-            };
-          })
-        );
-        
-        // Adjust the middle column index
-        setMiddleColumnIndex(prev => prev - 1);
-      } else {
-        alert("Cannot remove column: There are sections in the leftmost column. Please move them first.");
-      }
-    }
-  };
-
-  const removeColumnRight = () => {
-    if (gridWidth > 1) {
-      // Check if any sections are in the rightmost column
-      const sectionsInRightColumn = sectionStates.filter(s => s.position.x === gridWidth - 1);
-      
-      if (sectionsInRightColumn.length === 0) {
-        // Remove the rightmost column
-        setGridWidth(prev => prev - 1);
-      } else {
-        alert("Cannot remove column: There are sections in the rightmost column. Please move them first.");
-      }
-    }
-  };
-
-  const addRow = () => {
-    setGridHeight(prev => prev + 1);
-  };
-
-  const removeRow = () => {
-    if (gridHeight > 1) {
-      // Check if any sections are in the last row
-      const sectionsInLastRow = sectionStates.filter(s => s.position.y === gridHeight - 1);
-      
-      if (sectionsInLastRow.length === 0) {
-        // Remove any labels in the last row
-        setRowLabels(prev => prev.filter(label => label.rowIndex < gridHeight - 1));
-        
-        setGridHeight(prev => prev - 1);
-      } else {
-        alert("Cannot remove row: There are sections in the last row. Please move them first.");
-      }
     }
   };
 
@@ -427,67 +363,6 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     <div className="flex flex-col items-center">
       <div className="mb-6 flex flex-wrap gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
         <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Columns:</span>
-          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
-            <div className="flex">
-              <button 
-                onClick={removeColumnLeft}
-                className="px-2 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors border-r border-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={gridWidth <= 1}
-                title="Remove column from left"
-              >
-                ←
-              </button>
-              <button 
-                onClick={removeColumnRight}
-                className="px-2 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={gridWidth <= 1}
-                title="Remove column from right"
-              >
-                →
-              </button>
-            </div>
-            <span className="w-10 text-center font-medium">{gridWidth}</span>
-            <div className="flex">
-              <button 
-                onClick={addColumnLeft}
-                className="px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors border-r border-green-600"
-                title="Add column to left"
-              >
-                ←
-              </button>
-              <button 
-                onClick={addColumnRight}
-                className="px-2 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors"
-                title="Add column to right"
-              >
-                →
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Rows:</span>
-          <div className="flex items-center bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
-            <button 
-              onClick={removeRow}
-              className="px-3 py-1.5 bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={gridHeight <= 1}
-            >
-              -
-            </button>
-            <span className="w-10 text-center font-medium">{gridHeight}</span>
-            <button 
-              onClick={addRow}
-              className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors"
-            >
-              +
-            </button>
-          </div>
-        </div>
-        
-        <div className="flex items-center space-x-3">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Row Labels:</span>
           <button 
             onClick={() => setShowAddLabel(true)}
@@ -501,19 +376,18 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       
       <DndProvider backend={HTML5Backend}>
         <div
-          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-4"
+          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-4 overflow-auto"
           style={{
             width: `${gridWidth * gridSize + 32}px`,
             height: `${gridHeight * gridSize + 32}px`,
+            minWidth: '800px', // Ensure minimum width for usability
+            minHeight: '600px', // Ensure minimum height for usability
           }}
         >
-          {/* Grid cells */}
+          {/* Grid cells - render all cells to enable drag and drop everywhere */}
           {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
             const x = index % gridWidth;
             const y = Math.floor(index / gridWidth);
-            
-            // Highlight the middle column
-            const isMiddleColumn = x === middleColumnIndex;
             
             return (
               <GridCell
@@ -527,7 +401,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
 
           {/* Middle column indicator */}
           <div 
-            className="absolute bg-gray-100 dark:bg-gray-800 border-l-2 border-r-2 border-blue-400 dark:border-blue-500"
+            className="absolute bg-gray-100 dark:bg-gray-800"
             style={{
               left: `${middleColumnIndex * gridSize}px`,
               top: 0,
@@ -640,7 +514,10 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             <DraggableSection
               key={section.id}
               section={section}
-              onMove={handleDrop}
+              onMove={(id, position) => {
+                setDraggedSectionId(id);
+                handleDrop(id, position);
+              }}
               onStatusChange={handleStatusChange}
               onDelete={handleDelete}
               gridSize={gridSize}
