@@ -27,15 +27,17 @@ CREATE TABLE warehouses (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Create warehouse_sections table with shorter UUIDs
+-- Create warehouse_sections table
 CREATE TABLE warehouse_sections (
-  id UUID DEFAULT generate_short_uuid() PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   warehouse_id UUID REFERENCES warehouses(id) ON DELETE CASCADE,
   warehouse_name TEXT NOT NULL,
   section_number INTEGER NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('green', 'red')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  position_x INTEGER DEFAULT 0,
+  position_y INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(warehouse_id, section_number)
 );
 
@@ -98,8 +100,22 @@ INSERT INTO warehouses (name, type, letter) VALUES
 ('Tertiary Outdoor Storage', 'outdoor', 'G'),
 ('Quaternary Outdoor Storage', 'outdoor', 'H');
 
--- Insert sections for all warehouses
-INSERT INTO warehouse_sections (warehouse_id, warehouse_name, section_number, status)
-SELECT w.id, w.name, s.section_number, 'green'::text
-FROM warehouses w
-CROSS JOIN (SELECT generate_series(1, 4) as section_number) s; 
+-- Create initial sections for each warehouse with positions
+DO $$
+DECLARE
+  w RECORD;
+  section_num INTEGER;
+  pos_x INTEGER;
+  pos_y INTEGER;
+BEGIN
+  FOR w IN SELECT * FROM warehouses LOOP
+    FOR section_num IN 1..4 LOOP
+      -- Calculate position based on section number
+      pos_x := (section_num - 1) % 2;
+      pos_y := (section_num - 1) / 2;
+      
+      INSERT INTO warehouse_sections (warehouse_id, warehouse_name, section_number, status, position_x, position_y)
+      VALUES (w.id, w.name, section_num, 'green', pos_x, pos_y);
+    END LOOP;
+  END LOOP;
+END $$; 

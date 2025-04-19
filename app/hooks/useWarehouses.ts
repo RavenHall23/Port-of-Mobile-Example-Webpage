@@ -18,6 +18,7 @@ export function useWarehouses() {
   const [loading, setLoading] = useState(true)
   const [removedSections, setRemovedSections] = useState<RemovedSection[]>([])
   const [supabase] = useState(() => createClient())
+  const [sectionPositions, setSectionPositions] = useState<Record<string, { x: number, y: number }>>({})
 
   const fetchWarehouses = useCallback(async () => {
     if (!supabase) return;
@@ -36,7 +37,7 @@ export function useWarehouses() {
       setIndoorWarehouses(indoor);
       setOutdoorWarehouses(outdoor);
 
-      // Fetch sections status
+      // Fetch sections status and positions
       const { data: sectionsData, error: sectionsError } = await supabase
         .from('warehouse_sections')
         .select('*');
@@ -44,14 +45,22 @@ export function useWarehouses() {
       if (sectionsError) throw sectionsError;
 
       const newButtonStatus: Record<string, WarehouseStatus> = {};
+      const sectionPositions: Record<string, { x: number, y: number }> = {};
+      
       sectionsData.forEach(section => {
         const warehouse = warehouseData.find(w => w.id === section.warehouse_id);
         if (warehouse) {
-          newButtonStatus[`${warehouse.letter}${section.section_number}`] = section.status;
+          const sectionKey = `${warehouse.letter}${section.section_number}`;
+          newButtonStatus[sectionKey] = section.status;
+          sectionPositions[sectionKey] = {
+            x: section.position_x,
+            y: section.position_y
+          };
         }
       });
 
       setButtonStatus(newButtonStatus);
+      setSectionPositions(sectionPositions);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     } finally {
@@ -200,6 +209,32 @@ export function useWarehouses() {
       return true
     } catch (error) {
       console.error('Error updating section status:', error)
+      return false
+    }
+  }
+
+  const updateSectionPosition = async (warehouseLetter: string, sectionNumber: number, position: { x: number, y: number }) => {
+    if (!supabase) return false;
+    
+    try {
+      // Find the warehouse by letter
+      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === warehouseLetter)
+      if (!warehouse) throw new Error('Warehouse not found')
+
+      const { error } = await supabase
+        .from('warehouse_sections')
+        .update({ 
+          position_x: position.x,
+          position_y: position.y
+        })
+        .eq('warehouse_id', warehouse.id)
+        .eq('section_number', sectionNumber)
+
+      if (error) throw error
+
+      return true
+    } catch (error) {
+      console.error('Error updating section position:', error)
       return false
     }
   }
@@ -567,12 +602,33 @@ export function useWarehouses() {
     loading,
     createWarehouse,
     updateSectionStatus,
+    updateSectionPosition,
     removeWarehouse,
     removeSection,
     downloadWarehouseData,
     removedSections,
     undoSectionRemoval,
     addSections,
-    clearRemovedSections
+    clearRemovedSections,
+    sectionPositions
   }
-} 
+}
+
+// Add type for the hook's return value
+export type UseWarehousesReturn = {
+  indoorWarehouses: Warehouse[];
+  outdoorWarehouses: Warehouse[];
+  buttonStatus: Record<string, WarehouseStatus>;
+  loading: boolean;
+  createWarehouse: (type: WarehouseType, name: string, sections: number) => Promise<boolean>;
+  updateSectionStatus: (warehouseLetter: string, sectionNumber: number, status: WarehouseStatus) => Promise<boolean>;
+  updateSectionPosition: (warehouseLetter: string, sectionNumber: number, position: { x: number, y: number }) => Promise<boolean>;
+  removeWarehouse: (letter: string) => Promise<boolean>;
+  removeSection: (warehouseLetter: string, sectionNumber: number) => Promise<boolean>;
+  downloadWarehouseData: () => void;
+  removedSections: RemovedSection[];
+  undoSectionRemoval: (section: RemovedSection) => Promise<boolean>;
+  addSections: (warehouseLetter: string, numberOfSections: number) => Promise<boolean>;
+  clearRemovedSections: () => void;
+  sectionPositions: Record<string, { x: number, y: number }>;
+}; 

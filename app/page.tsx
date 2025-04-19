@@ -31,13 +31,15 @@ export default function Home() {
     loading,
     createWarehouse,
     updateSectionStatus,
+    updateSectionPosition,
     removeWarehouse,
     removeSection,
     downloadWarehouseData,
     removedSections,
     undoSectionRemoval,
     addSections,
-    clearRemovedSections
+    clearRemovedSections,
+    sectionPositions,
   } = useWarehouses();
 
   const { theme, setTheme } = useTheme()
@@ -512,19 +514,27 @@ export default function Home() {
             </div>
             <div className="flex justify-center">
               <DraggableGrid
-                sections={Object.entries(buttonStatus)
-                  .filter(([key]) => key.startsWith(selectedWarehouse))
-                  .map(([key, status]) => ({
-                    key,
-                    status,
-                    sectionNumber: key.replace(selectedWarehouse, '')
-                  }))}
+                sections={Object.entries(buttonStatus).map(([key, status]) => ({
+                  key,
+                  status,
+                  sectionNumber: key.slice(1),
+                  position: sectionPositions[key],
+                }))}
                 onSectionMove={(sectionId, position) => {
                   console.log('Section moved:', sectionId, position);
                 }}
-                onStatusChange={(sectionId, status) => {
-                  const sectionNumber = parseInt(sectionId.replace(selectedWarehouse, ''));
-                  handleButtonClick(selectedWarehouse, sectionNumber);
+                onStatusChange={async (sectionId, status) => {
+                  const warehouseLetter = sectionId.charAt(0);
+                  const sectionNumber = parseInt(sectionId.slice(1));
+                  await updateSectionStatus(warehouseLetter, sectionNumber, status);
+                }}
+                onSectionDelete={(sectionId) => {
+                  const warehouseLetter = sectionId.charAt(0);
+                  const sectionNumber = parseInt(sectionId.slice(1));
+                  removeSection(warehouseLetter, sectionNumber);
+                }}
+                onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
+                  return await updateSectionPosition(warehouseLetter, sectionNumber, position);
                 }}
               />
             </div>

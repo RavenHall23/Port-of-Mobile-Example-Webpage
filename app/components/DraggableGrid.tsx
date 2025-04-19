@@ -153,10 +153,12 @@ interface DraggableGridProps {
     key: string;
     status: WarehouseStatus;
     sectionNumber: string;
+    position?: { x: number, y: number };
   }>;
   onSectionMove: (sectionId: string, position: Position) => void;
   onStatusChange: (sectionId: string, status: WarehouseStatus) => void;
   onSectionDelete?: (sectionId: string) => void;
+  onSectionPositionUpdate: (warehouseLetter: string, sectionNumber: number, position: Position) => Promise<boolean>;
 }
 
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
@@ -164,6 +166,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onSectionMove,
   onStatusChange,
   onSectionDelete,
+  onSectionPositionUpdate,
 }) => {
   const gridSize = 100; // Size of each grid cell in pixels
   const [gridWidth, setGridWidth] = useState(15); // Increased initial width
@@ -180,21 +183,28 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
 
   useEffect(() => {
     if (!initialized) {
-      // Initialize section positions with the middle column being empty
+      // Initialize section positions from props or calculate default positions
       setSectionStates(
-        sections.map((section, index) => {
-          // Calculate position with middle column being empty
-          let x = index % (gridWidth - 1); // Use gridWidth - 1 to account for empty column
-          let y = Math.floor(index / (gridWidth - 1));
+        sections.map((section) => {
+          // Use provided position or calculate default
+          let position = section.position || { x: 0, y: 0 };
           
-          // Adjust x position to skip the middle column
-          if (x >= middleColumnIndex) {
-            x += 1; // Shift positions after the middle column
+          // If no position is provided, calculate default position
+          if (!section.position) {
+            const index = parseInt(section.sectionNumber) - 1;
+            let x = index % (gridWidth - 1); // Use gridWidth - 1 to account for empty column
+            let y = Math.floor(index / (gridWidth - 1));
+            
+            // Adjust x position to skip the middle column
+            if (x >= middleColumnIndex) {
+              x += 1; // Shift positions after the middle column
+            }
+            position = { x, y };
           }
           
           return {
             id: section.key,
-            position: { x, y },
+            position,
             status: section.status,
             number: section.sectionNumber,
           };
@@ -207,23 +217,27 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         const existingIds = new Set(prevStates.map(s => s.id));
         const newSections = sections
           .filter(section => !existingIds.has(section.key))
-          .map((section, index) => {
-            // Find an empty position for the new section, avoiding the middle column
-            const usedPositions = new Set(prevStates.map(s => `${s.position.x},${s.position.y}`));
-            let position = { x: 0, y: 0 };
+          .map((section) => {
+            // Use provided position or find first available position
+            let position = section.position;
             
-            // Find the first available position, skipping the middle column
-            for (let y = 0; y < gridHeight; y++) {
-              for (let x = 0; x < gridWidth; x++) {
-                // Skip the middle column
-                if (x === middleColumnIndex) continue;
-                
-                if (!usedPositions.has(`${x},${y}`)) {
-                  position = { x, y };
-                  break;
+            if (!position) {
+              const usedPositions = new Set(prevStates.map(s => `${s.position.x},${s.position.y}`));
+              position = { x: 0, y: 0 };
+              
+              // Find the first available position, skipping the middle column
+              for (let y = 0; y < gridHeight; y++) {
+                for (let x = 0; x < gridWidth; x++) {
+                  // Skip the middle column
+                  if (x === middleColumnIndex) continue;
+                  
+                  if (!usedPositions.has(`${x},${y}`)) {
+                    position = { x, y };
+                    break;
+                  }
                 }
+                if (position.x !== 0 || position.y !== 0) break;
               }
-              if (position.x !== 0 || position.y !== 0) break;
             }
             
             return {
@@ -261,39 +275,25 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   }, [middleColumnIndex, initialized]);
 
   const handleDrop = (sectionId: string, position: Position) => {
-    // Prevent dropping in the middle column
-    if (position.x === middleColumnIndex) {
-      return; // Don't allow drops in the middle column
-    }
-    
-    // Dynamically expand the grid if needed
-    let newGridWidth = gridWidth;
-    let newGridHeight = gridHeight;
-    
-    if (position.x >= gridWidth) {
-      newGridWidth = position.x + 1;
-    }
-    if (position.y >= gridHeight) {
-      newGridHeight = position.y + 1;
-    }
-    
-    // Update grid dimensions if needed
-    if (newGridWidth > gridWidth) {
-      setGridWidth(newGridWidth);
-    }
-    if (newGridHeight > gridHeight) {
-      setGridHeight(newGridHeight);
-    }
-    
-    // Update the section's position in the state
-    setSectionStates((prev) =>
-      prev.map((section) =>
-        section.id === sectionId ? { ...section, position } : section
-      )
-    );
-    
-    // Notify parent component about the move
-    onSectionMove(sectionId, position);
+    setSectionStates(prevStates => {
+      const newStates = prevStates.map(section => {
+        if (section.id === sectionId) {
+          // Extract warehouse letter and section number from the section ID
+          const warehouseLetter = section.id.charAt(0);
+          const sectionNumber = parseInt(section.id.slice(1));
+          
+          // Update position in the database
+          onSectionPositionUpdate(warehouseLetter, sectionNumber, position);
+          
+          return {
+            ...section,
+            position,
+          };
+        }
+        return section;
+      });
+      return newStates;
+    });
   };
 
   const handleStatusChange = (sectionId: string, status: WarehouseStatus) => {
