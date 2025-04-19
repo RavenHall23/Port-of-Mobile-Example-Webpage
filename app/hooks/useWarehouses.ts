@@ -31,8 +31,21 @@ export function useWarehouses() {
 
       if (error) throw error;
 
-      const indoor = warehouseData.filter(w => w.type === 'indoor');
-      const outdoor = warehouseData.filter(w => w.type === 'outdoor');
+      console.log('Fetched warehouse data:', warehouseData);
+
+      // Ensure last_modified is set for all warehouses
+      const warehousesWithLastModified = warehouseData.map(warehouse => ({
+        ...warehouse,
+        last_modified: warehouse.last_modified || warehouse.updated_at || new Date().toISOString()
+      }));
+
+      // Log last_modified values for debugging
+      warehousesWithLastModified.forEach(warehouse => {
+        console.log(`Warehouse ${warehouse.letter} last_modified:`, warehouse.last_modified);
+      });
+
+      const indoor = warehousesWithLastModified.filter(w => w.type === 'indoor');
+      const outdoor = warehousesWithLastModified.filter(w => w.type === 'outdoor');
 
       setIndoorWarehouses(indoor);
       setOutdoorWarehouses(outdoor);
@@ -48,7 +61,7 @@ export function useWarehouses() {
       const sectionPositions: Record<string, { x: number, y: number }> = {};
       
       sectionsData.forEach(section => {
-        const warehouse = warehouseData.find(w => w.id === section.warehouse_id);
+        const warehouse = warehousesWithLastModified.find(w => w.id === section.warehouse_id);
         if (warehouse) {
           const sectionKey = `${warehouse.letter}${section.section_number}`;
           newButtonStatus[sectionKey] = section.status;
@@ -110,7 +123,8 @@ export function useWarehouses() {
       const warehouseData = {
         letter: nextLetter,
         name,
-        type
+        type,
+        last_modified: new Date().toISOString()
       };
       console.log('Attempting to insert warehouse:', warehouseData);
 
@@ -161,7 +175,8 @@ export function useWarehouses() {
         name,
         type,
         created_at: warehouse.created_at,
-        updated_at: warehouse.updated_at
+        updated_at: warehouse.updated_at,
+        last_modified: warehouse.last_modified || new Date().toISOString()
       };
       if (type === 'indoor') {
         setIndoorWarehouses(prev => sortWarehouses([...prev, newWarehouse]));
@@ -185,6 +200,26 @@ export function useWarehouses() {
     }
   };
 
+  const fetchSingleWarehouse = async (warehouseLetter: string) => {
+    if (!supabase) return null;
+
+    try {
+      const { data: warehouseData, error } = await supabase
+        .from('warehouses')
+        .select('*')
+        .eq('letter', warehouseLetter)
+        .single();
+
+      if (error) throw error;
+
+      console.log(`Fetched single warehouse data for ${warehouseLetter}:`, warehouseData);
+      return warehouseData;
+    } catch (error) {
+      console.error('Error fetching single warehouse:', error);
+      return null;
+    }
+  };
+
   const updateSectionStatus = async (warehouseLetter: string, sectionNumber: number, status: WarehouseStatus) => {
     if (!supabase) return false;
     
@@ -205,6 +240,20 @@ export function useWarehouses() {
         ...prev,
         [`${warehouseLetter}${sectionNumber}`]: status
       }))
+
+      // Fetch only the updated warehouse
+      const updatedWarehouse = await fetchSingleWarehouse(warehouseLetter);
+      if (updatedWarehouse) {
+        if (updatedWarehouse.type === 'indoor') {
+          setIndoorWarehouses(prev => prev.map(w => 
+            w.letter === warehouseLetter ? updatedWarehouse : w
+          ));
+        } else {
+          setOutdoorWarehouses(prev => prev.map(w => 
+            w.letter === warehouseLetter ? updatedWarehouse : w
+          ));
+        }
+      }
 
       return true
     } catch (error) {
@@ -231,6 +280,20 @@ export function useWarehouses() {
         .eq('section_number', sectionNumber)
 
       if (error) throw error
+
+      // Fetch only the updated warehouse
+      const updatedWarehouse = await fetchSingleWarehouse(warehouseLetter);
+      if (updatedWarehouse) {
+        if (updatedWarehouse.type === 'indoor') {
+          setIndoorWarehouses(prev => prev.map(w => 
+            w.letter === warehouseLetter ? updatedWarehouse : w
+          ));
+        } else {
+          setOutdoorWarehouses(prev => prev.map(w => 
+            w.letter === warehouseLetter ? updatedWarehouse : w
+          ));
+        }
+      }
 
       return true
     } catch (error) {
@@ -327,9 +390,22 @@ export function useWarehouses() {
       // Remove the section from buttonStatus
       const newButtonStatus = { ...buttonStatus };
       delete newButtonStatus[`${warehouseLetter}${sectionNumber}`];
-
       setButtonStatus(newButtonStatus);
-      await fetchWarehouses();
+
+      // Fetch only the updated warehouse
+      const updatedWarehouse = await fetchSingleWarehouse(warehouseLetter);
+      if (updatedWarehouse) {
+        if (updatedWarehouse.type === 'indoor') {
+          setIndoorWarehouses(prev => prev.map(w => 
+            w.letter === warehouseLetter ? updatedWarehouse : w
+          ));
+        } else {
+          setOutdoorWarehouses(prev => prev.map(w => 
+            w.letter === warehouseLetter ? updatedWarehouse : w
+          ));
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error removing section:', error);
@@ -366,21 +442,34 @@ export function useWarehouses() {
         .eq('letter', removedSection.warehouseLetter);
 
       // Add the section back to buttonStatus
-      const newButtonStatus = { ...buttonStatus };
-      newButtonStatus[`${removedSection.warehouseLetter}${removedSection.sectionNumber}`] = removedSection.status;
+      setButtonStatus(prev => ({
+        ...prev,
+        [`${removedSection.warehouseLetter}${removedSection.sectionNumber}`]: removedSection.status
+      }));
 
-      setButtonStatus(newButtonStatus);
-      
-      // Remove this section from removedSections
+      // Remove the section from removedSections
       setRemovedSections(prev => prev.filter(s => 
         s.warehouseLetter !== removedSection.warehouseLetter || 
         s.sectionNumber !== removedSection.sectionNumber
       ));
 
-      await fetchWarehouses();
+      // Fetch only the updated warehouse
+      const updatedWarehouse = await fetchSingleWarehouse(removedSection.warehouseLetter);
+      if (updatedWarehouse) {
+        if (updatedWarehouse.type === 'indoor') {
+          setIndoorWarehouses(prev => prev.map(w => 
+            w.letter === removedSection.warehouseLetter ? updatedWarehouse : w
+          ));
+        } else {
+          setOutdoorWarehouses(prev => prev.map(w => 
+            w.letter === removedSection.warehouseLetter ? updatedWarehouse : w
+          ));
+        }
+      }
+
       return true;
     } catch (error) {
-      console.error('Error restoring section:', error);
+      console.error('Error undoing section removal:', error);
       return false;
     }
   };
@@ -402,8 +491,6 @@ export function useWarehouses() {
     const calculateSectionPercentage = (status: WarehouseStatus) => {
       switch (status) {
         case 'green': return 100
-        case 'yellow': return 75
-        case 'orange': return 50
         case 'red': return 0
         default: return 0
       }
@@ -580,6 +667,7 @@ export function useWarehouses() {
       });
       setButtonStatus(newButtonStatus);
 
+      // Refresh warehouse data to get updated last_modified
       await fetchWarehouses();
       return true;
     } catch (error) {

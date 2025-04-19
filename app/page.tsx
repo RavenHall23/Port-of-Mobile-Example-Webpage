@@ -315,6 +315,16 @@ export default function Home() {
               <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-fit min-w-[200px]">
                 {indoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
+                  console.log('Warehouse data:', warehouse);
+                  console.log('Last modified value:', warehouse.last_modified);
+                  
+                  // Handle missing last_modified field
+                  const lastModifiedValue = warehouse.last_modified || warehouse.updated_at || new Date().toISOString();
+                  console.log('Using last modified value:', lastModifiedValue);
+                  
+                  const lastModified = new Date(lastModifiedValue).toLocaleString()
+                  console.log('Formatted last modified:', lastModified);
+                  
                   return (
                     <WarehouseItem
                       key={warehouse.letter}
@@ -322,6 +332,7 @@ export default function Home() {
                       onClick={() => handleWarehouseClick(warehouse.letter)}
                       isSelected={selectedWarehouse === warehouse.letter}
                       utilization={utilization}
+                      lastModified={lastModifiedValue}
                     />
                   )
                 })}
@@ -354,6 +365,16 @@ export default function Home() {
               <div className="mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-fit min-w-[200px]">
                 {outdoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
+                  console.log('Warehouse data:', warehouse);
+                  console.log('Last modified value:', warehouse.last_modified);
+                  
+                  // Handle missing last_modified field
+                  const lastModifiedValue = warehouse.last_modified || warehouse.updated_at || new Date().toISOString();
+                  console.log('Using last modified value:', lastModifiedValue);
+                  
+                  const lastModified = new Date(lastModifiedValue).toLocaleString()
+                  console.log('Formatted last modified:', lastModified);
+                  
                   return (
                     <WarehouseItem
                       key={warehouse.letter}
@@ -361,6 +382,7 @@ export default function Home() {
                       onClick={() => handleWarehouseClick(warehouse.letter)}
                       isSelected={selectedWarehouse === warehouse.letter}
                       utilization={utilization}
+                      lastModified={lastModifiedValue}
                     />
                   )
                 })}
