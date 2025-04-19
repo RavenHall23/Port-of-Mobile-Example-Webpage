@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
-import { createClient } from '@/utils/supabase/client'
-import type { Warehouse, WarehouseStatus, WarehouseType } from '@/types/database'
+import { createClient } from '../utils/supabase/client'
+import type { Warehouse, WarehouseStatus, WarehouseType } from '../../types/database'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
