@@ -1,4 +1,4 @@
-import type { Warehouse } from '@/types/database'
+import type { Warehouse } from '../../types/database'
 
 interface WarehouseItemProps {
   warehouse: Warehouse
