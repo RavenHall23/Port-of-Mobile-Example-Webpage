@@ -186,76 +186,51 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    if (!initialized) {
-      // Initialize section positions from props or calculate default positions
-      setSectionStates(
-        sections.map((section) => {
-          // Use provided position or calculate default
-          let position = section.position || { x: 0, y: 0 };
-          
-          // If no position is provided, calculate default position
-          if (!section.position) {
-            const index = parseInt(section.sectionNumber) - 1;
-            let x = index % (gridWidth - 1); // Use gridWidth - 1 to account for empty column
-            let y = Math.floor(index / (gridWidth - 1));
-            
-            // Adjust x position to skip the middle column
-            if (x >= middleColumnIndex) {
-              x += 1; // Shift positions after the middle column
-            }
-            position = { x, y };
-          }
-          
-          return {
-            id: section.key,
-            position,
-            status: section.status,
-            number: section.sectionNumber,
-          };
-        })
-      );
-      setInitialized(true);
-    } else {
-      // For subsequent updates, only add new sections without changing existing positions
-      setSectionStates(prevStates => {
-        const existingIds = new Set(prevStates.map(s => s.id));
-        const newSections = sections
-          .filter(section => !existingIds.has(section.key))
-          .map((section) => {
-            // Use provided position or find first available position
-            let position = section.position;
-            
-            if (!position) {
-              const usedPositions = new Set(prevStates.map(s => `${s.position.x},${s.position.y}`));
-              position = { x: 0, y: 0 };
-              
-              // Find the first available position, skipping the middle column
-              for (let y = 0; y < gridHeight; y++) {
-                for (let x = 0; x < gridWidth; x++) {
-                  // Skip the middle column
-                  if (x === middleColumnIndex) continue;
-                  
-                  if (!usedPositions.has(`${x},${y}`)) {
-                    position = { x, y };
-                    break;
-                  }
-                }
-                if (position.x !== 0 || position.y !== 0) break;
-              }
-            }
-            
-            return {
-              id: section.key,
-              position,
-              status: section.status,
-              number: section.sectionNumber,
-            };
-          });
+    // Always update sections when they change
+    const existingIds = new Set(sectionStates.map(s => s.id));
+    const updatedSections = sections.map((section) => {
+      // If section already exists, keep its current position
+      const existingSection = sectionStates.find(s => s.id === section.key);
+      if (existingSection) {
+        return existingSection;
+      }
+
+      // For new sections, calculate position
+      let position = section.position;
+      if (!position) {
+        const usedPositions = new Set(sectionStates.map(s => `${s.position.x},${s.position.y}`));
+        const index = parseInt(section.sectionNumber) - 1;
         
-        return [...prevStates, ...newSections];
-      });
-    }
-  }, [sections, initialized, gridWidth, gridHeight, middleColumnIndex]);
+        // Try to place new sections in a grid pattern, skipping the middle column
+        let x = index % (gridWidth - 1);
+        let y = Math.floor(index / (gridWidth - 1));
+        
+        // Adjust x position to skip the middle column
+        if (x >= middleColumnIndex) {
+          x += 1;
+        }
+        
+        // If position is taken, find next available spot
+        while (usedPositions.has(`${x},${y}`)) {
+          x = (x + 1) % gridWidth;
+          if (x === middleColumnIndex) x++; // Skip middle column
+          if (x === 0) y++; // Move to next row if we wrap around
+          if (y >= gridHeight) y = 0; // Wrap back to top if we reach bottom
+        }
+        
+        position = { x, y };
+      }
+
+      return {
+        id: section.key,
+        position,
+        status: section.status,
+        number: section.sectionNumber,
+      };
+    });
+
+    setSectionStates(updatedSections);
+  }, [sections, gridWidth, gridHeight, middleColumnIndex]);
 
   // Update section positions when the middle column index changes
   useEffect(() => {
