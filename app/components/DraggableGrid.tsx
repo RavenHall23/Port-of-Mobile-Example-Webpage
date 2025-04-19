@@ -27,6 +27,7 @@ interface DraggableSectionProps {
   onStatusChange: (id: string, status: WarehouseStatus) => void;
   onDelete: (id: string) => void;
   gridSize: number;
+  colorBlindMode: boolean;
 }
 
 const DraggableSection: React.FC<DraggableSectionProps> = ({ 
@@ -34,7 +35,8 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   onMove, 
   onStatusChange, 
   onDelete,
-  gridSize 
+  gridSize,
+  colorBlindMode
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
@@ -72,6 +74,22 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   const margin = gridSize < 80 ? 2 : 4; // Smaller margin on mobile
   const sectionSize = gridSize - (margin * 2);
 
+  // Get pattern class based on status and color blind mode
+  const getPatternClass = (status: WarehouseStatus) => {
+    if (!colorBlindMode) return '';
+    
+    return status === 'green' 
+      ? 'pattern-diagonal-lines pattern-green-500 pattern-opacity-30' 
+      : 'pattern-dots pattern-red-500 pattern-opacity-30';
+  };
+
+  // Get text indicator based on status and color blind mode
+  const getStatusIndicator = (status: WarehouseStatus) => {
+    if (!colorBlindMode) return '';
+    
+    return status === 'green' ? '✓' : '×';
+  };
+
   return (
     <div
       ref={ref}
@@ -93,9 +111,14 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         onClick={handleClick}
         className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 ${
           statusColors[section.status].color
-        }`}
+        } ${getPatternClass(section.status)}`}
       >
-        <span className={`${gridSize < 80 ? 'text-xs' : 'text-sm'}`}>{section.number}</span>
+        <div className="flex flex-col items-center">
+          <span className={`${gridSize < 80 ? 'text-xs' : 'text-sm'}`}>{section.number}</span>
+          {getStatusIndicator(section.status) && (
+            <span className="text-white font-bold">{getStatusIndicator(section.status)}</span>
+          )}
+        </div>
       </button>
       {showDeleteButton && (
         <button
@@ -163,6 +186,7 @@ interface DraggableGridProps {
   onSectionPositionUpdate: (warehouseLetter: string, sectionNumber: number, position: Position) => Promise<boolean>;
   currentWarehouse?: string;
   onAddSections?: () => void;
+  colorBlindMode?: boolean;
 }
 
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
@@ -173,6 +197,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onSectionPositionUpdate,
   currentWarehouse,
   onAddSections,
+  colorBlindMode = false,
 }) => {
   const [gridSize, setGridSize] = useState(100); // Size of each grid cell in pixels
   const [gridWidth, setGridWidth] = useState(15); // Increased initial width
@@ -526,6 +551,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
               onStatusChange={handleStatusChange}
               onDelete={handleDelete}
               gridSize={gridSize}
+              colorBlindMode={colorBlindMode}
             />
           ))}
         </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { WarehouseItem } from "@/components/WarehouseItem";
 import { WarehouseForm } from "@/components/WarehouseForm";
 import { useWarehouses } from "@/app/hooks/useWarehouses";
@@ -23,6 +24,7 @@ export default function Home() {
   const [newSectionsCount, setNewSectionsCount] = useState(1);
   const [addingSections, setAddingSections] = useState(false);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [colorBlindMode, setColorBlindMode] = useState(false);
   
   const {
     indoorWarehouses,
@@ -223,18 +225,36 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      {/* Add theme toggle button */}
-      <button
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        className="fixed top-4 right-4 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-        aria-label="Toggle theme"
-      >
-        {theme === 'dark' ? (
-          <SunIcon className="h-6 w-6 text-yellow-500" />
-        ) : (
-          <MoonIcon className="h-6 w-6 text-gray-700" />
-        )}
-      </button>
+      {/* Theme toggle and color blind mode buttons */}
+      <div className="fixed top-4 right-4 flex flex-col gap-2">
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors shadow-md"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? (
+            <SunIcon className="h-6 w-6 text-yellow-500" />
+          ) : (
+            <MoonIcon className="h-6 w-6 text-gray-700" />
+          )}
+        </button>
+        
+        <button
+          onClick={() => setColorBlindMode(!colorBlindMode)}
+          className={`p-2 rounded-lg transition-colors shadow-md ${
+            colorBlindMode 
+              ? 'bg-purple-500 hover:bg-purple-600 text-white' 
+              : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+          }`}
+          aria-label="Toggle color blind mode"
+        >
+          {colorBlindMode ? (
+            <EyeSlashIcon className="h-6 w-6" />
+          ) : (
+            <EyeIcon className="h-6 w-6" />
+          )}
+        </button>
+      </div>
 
       <div className="min-h-screen p-8 flex flex-col items-center justify-center">
         <h1 className="text-[32pt] font-[family-name:var(--font-geist-mono)] mb-12 bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight">
@@ -513,6 +533,7 @@ export default function Home() {
                 }}
                 currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
                 onAddSections={() => setShowAddSectionsModal(true)}
+                colorBlindMode={colorBlindMode}
               />
             </div>
           </div>
