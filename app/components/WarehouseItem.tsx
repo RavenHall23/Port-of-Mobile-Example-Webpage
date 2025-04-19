@@ -9,27 +9,6 @@ interface WarehouseItemProps {
 }
 
 export function WarehouseItem({ warehouse, onClick, isSelected, utilization, lastModified }: WarehouseItemProps) {
-  const getUtilizationColor = (percentage: number) => {
-    if (percentage >= 75) return 'from-green-500/90 to-emerald-500/90 dark:from-green-400/90 dark:to-emerald-400/90'
-    if (percentage >= 50) return 'from-yellow-500/90 to-amber-500/90 dark:from-yellow-400/90 dark:to-amber-400/90'
-    if (percentage >= 25) return 'from-orange-500/90 to-amber-600/90 dark:from-orange-400/90 dark:to-amber-500/90'
-    return 'from-red-500/90 to-rose-600/90 dark:from-red-400/90 dark:to-rose-500/90'
-  }
-
-  const getTextColor = (percentage: number) => {
-    if (percentage >= 75) return 'text-emerald-600 dark:text-emerald-400'
-    if (percentage >= 50) return 'text-amber-600 dark:text-amber-400'
-    if (percentage >= 25) return 'text-orange-600 dark:text-orange-400'
-    return 'text-rose-600 dark:text-rose-400'
-  }
-
-  const getRingColor = (percentage: number) => {
-    if (percentage >= 75) return 'ring-emerald-500/30 dark:ring-emerald-400/30'
-    if (percentage >= 50) return 'ring-amber-500/30 dark:ring-amber-400/30'
-    if (percentage >= 25) return 'ring-orange-500/30 dark:ring-orange-400/30'
-    return 'ring-rose-500/30 dark:ring-rose-400/30'
-  }
-
   const formatLastModified = (dateString: string) => {
     try {
       console.log('Formatting date string:', dateString);
@@ -94,13 +73,7 @@ export function WarehouseItem({ warehouse, onClick, isSelected, utilization, las
         <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
           {utilization}%
         </div>
-        <div className="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300"
-            style={{ width: `${utilization}%` }}
-          />
-        </div>
       </div>
     </div>
-  )
+  );
 } 

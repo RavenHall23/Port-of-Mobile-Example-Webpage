@@ -1,12 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
-import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { SunIcon, MoonIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { WarehouseItem } from "@/components/WarehouseItem";
 import { WarehouseForm } from "@/components/WarehouseForm";
 import { useWarehouses } from "@/app/hooks/useWarehouses";
-import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "@/utils/warehouse-utils";
+import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage } from "@/utils/warehouse-utils";
 import type { WarehouseStatus } from '@/types/database';
 import { PieChartComponent } from "@/components/ui/pie-chart";
 import { DraggableGrid } from "@/components/DraggableGrid";
@@ -25,7 +24,8 @@ export default function Home() {
   const [addingSections, setAddingSections] = useState(false);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   const [colorBlindMode, setColorBlindMode] = useState(false);
-  
+  const { theme, setTheme } = useTheme();
+
   const {
     indoorWarehouses,
     outdoorWarehouses,
@@ -33,18 +33,14 @@ export default function Home() {
     loading,
     createWarehouse,
     updateSectionStatus,
-    updateSectionPosition,
     removeWarehouse,
     removeSection,
     downloadWarehouseData,
     removedSections,
     undoSectionRemoval,
     addSections,
-    clearRemovedSections,
-    sectionPositions,
+    sectionPositions
   } = useWarehouses();
-
-  const { theme, setTheme } = useTheme()
 
   // Clear any existing timeout when component unmounts
   useEffect(() => {
@@ -103,15 +99,6 @@ export default function Home() {
     });
   };
 
-  const handleButtonClick = async (warehouseLetter: string, sectionNumber: number) => {
-    const currentStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
-    const newStatus = currentStatus === 'green' ? 'red' : 'green';
-    const success = await updateSectionStatus(warehouseLetter, sectionNumber, newStatus);
-    if (!success) {
-      alert('Failed to update section status. Please try again.');
-    }
-  };
-
   const handleCreateWarehouse = async (type: 'indoor' | 'outdoor', data: { name: string; sections: number }) => {
     const success = await createWarehouse(type, data.name, data.sections);
     if (success) {
@@ -167,31 +154,13 @@ export default function Home() {
     return Math.round(total / sections.length)
   }
 
-  const handleRemoveSection = async (warehouseLetter: string, sectionNumber: number) => {
-    if (confirm(`Are you sure you want to remove Section ${String.fromCharCode(64 + sectionNumber)}?`)) {
-      // Clear any existing timeout
-      if (undoTimeout) {
-        clearTimeout(undoTimeout);
-      }
-
-      const success = await removeSection(warehouseLetter, sectionNumber);
-      if (success) {
-        // Set new timeout for 3 seconds
-        const timeout = setTimeout(() => {
-          clearRemovedSections();
-        }, 3000);
-        setUndoTimeout(timeout);
-
-        // If all sections are removed, clear the selection
-        const remainingSections = Object.keys(buttonStatus).filter(key => key.startsWith(warehouseLetter));
-        if (remainingSections.length === 0) {
-          setSelectedWarehouse(null);
-        }
-      }
+  const handleAddSections = (warehouseLetter: string | null) => {
+    if (warehouseLetter) {
+      setShowAddSectionsModal(true);
     }
   };
 
-  const handleAddSections = async () => {
+  const handleAddSectionsSubmit = async () => {
     if (!selectedWarehouse || newSectionsCount < 1) return;
     
     setAddingSections(true);
@@ -537,24 +506,14 @@ export default function Home() {
                   sectionNumber: key.slice(1),
                   position: sectionPositions[key],
                 }))}
-                onSectionMove={(sectionId, position) => {
-                  console.log('Section moved:', sectionId, position);
-                }}
-                onStatusChange={async (sectionId, status) => {
-                  const warehouseLetter = sectionId.charAt(0);
-                  const sectionNumber = parseInt(sectionId.slice(1));
+                onStatusChange={async (warehouseLetter: string, sectionNumber: number, status: WarehouseStatus) => {
                   await updateSectionStatus(warehouseLetter, sectionNumber, status);
                 }}
-                onSectionDelete={(sectionId) => {
-                  const warehouseLetter = sectionId.charAt(0);
-                  const sectionNumber = parseInt(sectionId.slice(1));
+                onSectionDelete={(warehouseLetter: string, sectionNumber: number) => {
                   removeSection(warehouseLetter, sectionNumber);
                 }}
-                onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
-                  return await updateSectionPosition(warehouseLetter, sectionNumber, position);
-                }}
-                currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
-                onAddSections={() => setShowAddSectionsModal(true)}
+                currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || ''}
+                onAddSections={() => handleAddSections(selectedWarehouse)}
                 colorBlindMode={colorBlindMode}
               />
             </div>
@@ -594,7 +553,7 @@ export default function Home() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleAddSections}
+                  onClick={handleAddSectionsSubmit}
                   disabled={addingSections || newSectionsCount < 1}
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
