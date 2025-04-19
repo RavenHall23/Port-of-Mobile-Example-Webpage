@@ -69,7 +69,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   };
 
   // Calculate position with margin to prevent overlap with grid lines
-  const margin = 4; // 4px margin on each side
+  const margin = gridSize < 80 ? 2 : 4; // Smaller margin on mobile
   const sectionSize = gridSize - (margin * 2);
 
   return (
@@ -86,6 +86,8 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseEnter}
+      onTouchEnd={handleMouseLeave}
     >
       <button
         onClick={handleClick}
@@ -93,12 +95,12 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
           statusColors[section.status].color
         }`}
       >
-        {section.number}
+        <span className={`${gridSize < 80 ? 'text-xs' : 'text-sm'}`}>{section.number}</span>
       </button>
       {showDeleteButton && (
         <button
           onClick={handleDelete}
-          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform hover:scale-110 animate-fadeIn"
+          className="absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform hover:scale-110 animate-fadeIn"
           title="Delete section"
         >
           ×
@@ -172,7 +174,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   currentWarehouse,
   onAddSections,
 }) => {
-  const gridSize = 100; // Size of each grid cell in pixels
+  const [gridSize, setGridSize] = useState(100); // Size of each grid cell in pixels
   const [gridWidth, setGridWidth] = useState(15); // Increased initial width
   const [gridHeight, setGridHeight] = useState(10); // Increased initial height
   const [middleColumnIndex, setMiddleColumnIndex] = useState(7); // Adjusted middle column index
@@ -181,9 +183,38 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   const [newLabelRow, setNewLabelRow] = useState<number | null>(null);
   const [newLabelText, setNewLabelText] = useState('');
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
+
+  // Check if device is mobile
+  useEffect(() => {
+    const checkIfMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      
+      // Adjust grid size based on screen width
+      if (mobile) {
+        setGridSize(60); // Smaller grid cells on mobile
+        setGridWidth(10); // Fewer columns on mobile
+        setMiddleColumnIndex(4); // Adjusted middle column for mobile
+      } else {
+        setGridSize(100); // Normal grid cells on desktop
+        setGridWidth(15); // Normal columns on desktop
+        setMiddleColumnIndex(7); // Normal middle column for desktop
+      }
+    };
+    
+    // Check on initial load
+    checkIfMobile();
+    
+    // Add event listener for window resize
+    window.addEventListener('resize', checkIfMobile);
+    
+    // Clean up event listener
+    return () => window.removeEventListener('resize', checkIfMobile);
+  }, []);
 
   useEffect(() => {
     // Always update sections when they change
@@ -339,41 +370,40 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="mb-6 flex flex-col gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+    <div className="flex flex-col items-center w-full">
+      <div className="mb-6 flex flex-col gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md w-full max-w-full">
         {/* Current Warehouse Label */}
         {currentWarehouse && (
-          <div className="p-5 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 rounded-xl shadow-lg transform transition-all duration-300 hover:shadow-xl">
+          <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 rounded-xl shadow-lg transform transition-all duration-300 hover:shadow-xl mx-4 sm:mx-0 max-w-[280px] sm:max-w-none mx-auto">
             <div className="flex items-center justify-center">
               <div className="flex flex-col items-center">
-                <span className="text-white font-light text-sm uppercase tracking-wider mb-1">Current Warehouse</span>
-                <span className="text-white font-bold text-3xl">{currentWarehouse}</span>
+                <span className="text-white font-light text-xs sm:text-sm uppercase tracking-wider mb-1">Current Warehouse</span>
+                <span className="text-white font-bold text-xl sm:text-3xl text-center">{currentWarehouse}</span>
               </div>
             </div>
           </div>
         )}
         
         {/* Controls Row */}
-        <div className="flex flex-wrap gap-4">
-          <div className="flex items-center space-x-3">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Row Labels:</span>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
+          <div className="flex items-center justify-center w-full sm:w-auto max-w-[280px] sm:max-w-none">
             <button 
               onClick={() => setShowAddLabel(true)}
-              className="px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 transition-colors rounded-md"
+              className="px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 transition-colors rounded-md w-full sm:w-auto flex items-center justify-center gap-2"
               title="Add row label"
             >
-              Add Label
+              <span>Add Label</span>
             </button>
           </div>
           
           {onAddSections && (
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center justify-center w-full sm:w-auto max-w-[280px] sm:max-w-none">
               <button 
                 onClick={onAddSections}
-                className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors rounded-md"
+                className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors rounded-md w-full sm:w-auto flex items-center justify-center gap-2"
                 title="Add sections"
               >
-                Add Sections
+                <span>Add Sections</span>
               </button>
             </div>
           )}
@@ -382,12 +412,14 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       
       <DndProvider backend={HTML5Backend}>
         <div
-          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-4 overflow-auto"
+          className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-2 sm:p-4 overflow-auto"
           style={{
-            width: `${gridWidth * gridSize + 32}px`,
-            height: `${gridHeight * gridSize + 32}px`,
-            minWidth: '800px', // Ensure minimum width for usability
-            minHeight: '600px', // Ensure minimum height for usability
+            width: `${gridWidth * gridSize + 16}px`,
+            height: `${gridHeight * gridSize + 16}px`,
+            minWidth: isMobile ? '320px' : '800px',
+            minHeight: isMobile ? '400px' : '600px',
+            maxWidth: '100%',
+            maxHeight: '80vh',
           }}
         >
           {/* Grid cells - render all cells to enable drag and drop everywhere */}
@@ -434,29 +466,31 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                 zIndex: 15,
               }}
             >
-              <div className="flex items-center">
-                <span className="bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm font-bold px-3 py-1.5 rounded-md shadow-md border border-gray-300 dark:border-gray-600">
-                  {label.label}
-                </span>
-                <div className="flex ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => {
-                      setNewLabelRow(label.rowIndex);
-                      setNewLabelText(label.label);
-                      setShowAddLabel(true);
-                    }}
-                    className="text-blue-500 hover:text-blue-600 text-xs ml-2"
-                    title="Edit label"
-                  >
-                    ✎
-                  </button>
-                  <button
-                    onClick={() => handleDeleteLabel(label.rowIndex)}
-                    className="text-red-500 hover:text-red-600 text-xs ml-1"
-                    title="Delete label"
-                  >
-                    ×
-                  </button>
+              <div className="flex items-center justify-center w-full">
+                <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
+                  <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
+                    {label.label}
+                  </span>
+                  <div className="flex ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => {
+                        setNewLabelRow(label.rowIndex);
+                        setNewLabelText(label.label);
+                        setShowAddLabel(true);
+                      }}
+                      className="text-blue-500 hover:text-blue-600 text-xs ml-2"
+                      title="Edit label"
+                    >
+                      ✎
+                    </button>
+                    <button
+                      onClick={() => handleDeleteLabel(label.rowIndex)}
+                      className="text-red-500 hover:text-red-600 text-xs ml-1"
+                      title="Delete label"
+                    >
+                      ×
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -464,17 +498,17 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
 
           {/* Add label UI */}
           {showAddLabel && (
-            <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-80">
-                <h3 className="text-lg font-medium mb-4">Add Row Label</h3>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-full max-w-xs sm:max-w-sm">
+                <h3 className="text-lg font-medium mb-4 text-center">Add Row Label</h3>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">
                     Row Position
                   </label>
                   <select
                     value={newLabelRow !== null ? newLabelRow : ''}
                     onChange={(e) => setNewLabelRow(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center"
                   >
                     <option value="">Select a row</option>
                     {Array.from({ length: gridHeight - 1 }).map((_, index) => (
@@ -485,18 +519,18 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                   </select>
                 </div>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">
                     Label Text
                   </label>
                   <input
                     type="text"
                     value={newLabelText}
                     onChange={(e) => setNewLabelText(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center"
                     placeholder="Enter label text"
                   />
                 </div>
-                <div className="flex justify-end space-x-2">
+                <div className="flex justify-center space-x-2">
                   <button
                     onClick={() => setShowAddLabel(false)}
                     className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
