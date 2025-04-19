@@ -182,6 +182,8 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   const [showAddLabel, setShowAddLabel] = useState(false);
   const [newLabelRow, setNewLabelRow] = useState<number | null>(null);
   const [newLabelText, setNewLabelText] = useState('');
+  const [editingLabel, setEditingLabel] = useState<number | null>(null);
+  const [editingLabelText, setEditingLabelText] = useState('');
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -326,47 +328,48 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   };
 
   const handleAddLabel = (rowIndex: number) => {
-    setNewLabelRow(rowIndex);
-    setNewLabelText('');
-    setShowAddLabel(true);
+    setEditingLabel(rowIndex);
+    setEditingLabelText('');
   };
 
   const handleSaveLabel = () => {
-    if (newLabelText.trim() !== '' && newLabelRow !== null) {
+    if (editingLabelText.trim() !== '' && editingLabel !== null) {
       // Check if a label already exists for this row
-      const existingLabelIndex = rowLabels.findIndex(label => label.rowIndex === newLabelRow);
+      const existingLabelIndex = rowLabels.findIndex(label => label.rowIndex === editingLabel);
       
       if (existingLabelIndex >= 0) {
         // Update existing label
         setRowLabels(prev => 
           prev.map((label, index) => 
             index === existingLabelIndex 
-              ? { ...label, label: newLabelText } 
+              ? { ...label, label: editingLabelText } 
               : label
           )
         );
       } else {
         // Add new label
-        setRowLabels(prev => [...prev, { rowIndex: newLabelRow, label: newLabelText }]);
+        setRowLabels(prev => [...prev, { rowIndex: editingLabel, label: editingLabelText }]);
       }
     }
     
-    setShowAddLabel(false);
-    setNewLabelRow(null);
+    setEditingLabel(null);
   };
 
-  const handleEditLabel = (rowIndex: number, newLabel: string) => {
-    setRowLabels(prev => 
-      prev.map(label => 
-        label.rowIndex === rowIndex 
-          ? { ...label, label: newLabel } 
-          : label
-      )
-    );
+  const handleEditLabel = (rowIndex: number, currentLabel: string) => {
+    setEditingLabel(rowIndex);
+    setEditingLabelText(currentLabel);
   };
 
   const handleDeleteLabel = (rowIndex: number) => {
     setRowLabels(prev => prev.filter(label => label.rowIndex !== rowIndex));
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSaveLabel();
+    } else if (e.key === 'Escape') {
+      setEditingLabel(null);
+    }
   };
 
   return (
@@ -386,16 +389,6 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         
         {/* Controls Row */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
-          <div className="flex items-center justify-center w-full sm:w-auto max-w-[280px] sm:max-w-none">
-            <button 
-              onClick={() => setShowAddLabel(true)}
-              className="px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 transition-colors rounded-md w-full sm:w-auto flex items-center justify-center gap-2"
-              title="Add row label"
-            >
-              <span>Add Label</span>
-            </button>
-          </div>
-          
           {onAddSections && (
             <div className="flex items-center justify-center w-full sm:w-auto max-w-[280px] sm:max-w-none">
               <button 
@@ -453,101 +446,73 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             </div>
           </div>
 
-          {/* Row labels */}
-          {rowLabels.map((label) => (
-            <div
-              key={`label-${label.rowIndex}`}
-              className="absolute flex items-center justify-center group"
-              style={{
-                left: 0,
-                top: `${(label.rowIndex + 1) * gridSize - 15}px`,
-                width: `${gridWidth * gridSize}px`,
-                height: '30px',
-                zIndex: 15,
-              }}
-            >
-              <div className="flex items-center justify-center w-full">
-                <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
-                  <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
-                    {label.label}
-                  </span>
-                  <div className="flex ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          {/* Row labels and add label buttons */}
+          {Array.from({ length: gridHeight - 1 }).map((_, index) => {
+            const rowIndex = index;
+            const existingLabel = rowLabels.find(label => label.rowIndex === rowIndex);
+            const isEditing = editingLabel === rowIndex;
+            
+            return (
+              <div
+                key={`row-${rowIndex}`}
+                className="absolute flex items-center justify-center group"
+                style={{
+                  left: 0,
+                  top: `${(rowIndex + 1) * gridSize - 15}px`,
+                  width: `${gridWidth * gridSize}px`,
+                  height: '30px',
+                  zIndex: 15,
+                }}
+              >
+                <div className="flex items-center justify-center w-full">
+                  {isEditing ? (
+                    <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
+                      <input
+                        type="text"
+                        value={editingLabelText}
+                        onChange={(e) => setEditingLabelText(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        onBlur={handleSaveLabel}
+                        className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-0 w-32"
+                        placeholder="Enter label"
+                        autoFocus
+                      />
+                    </div>
+                  ) : existingLabel ? (
+                    <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
+                      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
+                        {existingLabel.label}
+                      </span>
+                      <div className="flex ml-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleEditLabel(rowIndex, existingLabel.label)}
+                          className="text-blue-500 hover:text-blue-600 text-xs ml-2 p-1"
+                          title="Edit label"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLabel(rowIndex)}
+                          className="text-red-500 hover:text-red-600 text-xs ml-1 p-1"
+                          title="Delete label"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
                     <button
-                      onClick={() => {
-                        setNewLabelRow(label.rowIndex);
-                        setNewLabelText(label.label);
-                        setShowAddLabel(true);
-                      }}
-                      className="text-blue-500 hover:text-blue-600 text-xs ml-2"
-                      title="Edit label"
+                      onClick={() => handleAddLabel(rowIndex)}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-800 rounded-full w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center shadow-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Add label"
                     >
-                      ✎
+                      <span className="text-blue-500 text-lg">+</span>
                     </button>
-                    <button
-                      onClick={() => handleDeleteLabel(label.rowIndex)}
-                      className="text-red-500 hover:text-red-600 text-xs ml-1"
-                      title="Delete label"
-                    >
-                      ×
-                    </button>
-                  </div>
+                  )}
                 </div>
               </div>
-            </div>
-          ))}
-
-          {/* Add label UI */}
-          {showAddLabel && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-lg w-full max-w-xs sm:max-w-sm">
-                <h3 className="text-lg font-medium mb-4 text-center">Add Row Label</h3>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">
-                    Row Position
-                  </label>
-                  <select
-                    value={newLabelRow !== null ? newLabelRow : ''}
-                    onChange={(e) => setNewLabelRow(parseInt(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center"
-                  >
-                    <option value="">Select a row</option>
-                    {Array.from({ length: gridHeight - 1 }).map((_, index) => (
-                      <option key={index} value={index}>
-                        Between Row {index + 1} and {index + 2}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 text-center">
-                    Label Text
-                  </label>
-                  <input
-                    type="text"
-                    value={newLabelText}
-                    onChange={(e) => setNewLabelText(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center"
-                    placeholder="Enter label text"
-                  />
-                </div>
-                <div className="flex justify-center space-x-2">
-                  <button
-                    onClick={() => setShowAddLabel(false)}
-                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveLabel}
-                    className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                    disabled={newLabelRow === null || newLabelText.trim() === ''}
-                  >
-                    Save
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })}
 
           {/* Draggable sections */}
           {sectionStates.map((section) => (
