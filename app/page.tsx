@@ -487,31 +487,6 @@ export default function Home() {
 
         {selectedWarehouse && (
           <div className="mt-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">
-                {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
-              </h2>
-              <button
-                onClick={() => setShowAddSectionsModal(true)}
-                className="group px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg transform hover:translate-y-[-1px]"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5 transition-transform duration-200 group-hover:scale-110" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
-                  />
-                </svg>
-                Add Sections
-              </button>
-            </div>
             <div className="flex justify-center">
               <DraggableGrid
                 sections={Object.entries(buttonStatus).map(([key, status]) => ({
@@ -536,6 +511,8 @@ export default function Home() {
                 onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
                   return await updateSectionPosition(warehouseLetter, sectionNumber, position);
                 }}
+                currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
+                onAddSections={() => setShowAddSectionsModal(true)}
               />
             </div>
           </div>

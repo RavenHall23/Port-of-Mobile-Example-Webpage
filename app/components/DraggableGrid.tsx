@@ -159,6 +159,8 @@ interface DraggableGridProps {
   onStatusChange: (sectionId: string, status: WarehouseStatus) => void;
   onSectionDelete?: (sectionId: string) => void;
   onSectionPositionUpdate: (warehouseLetter: string, sectionNumber: number, position: Position) => Promise<boolean>;
+  currentWarehouse?: string;
+  onAddSections?: () => void;
 }
 
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
@@ -167,6 +169,8 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onStatusChange,
   onSectionDelete,
   onSectionPositionUpdate,
+  currentWarehouse,
+  onAddSections,
 }) => {
   const gridSize = 100; // Size of each grid cell in pixels
   const [gridWidth, setGridWidth] = useState(15); // Increased initial width
@@ -361,16 +365,43 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
 
   return (
     <div className="flex flex-col items-center">
-      <div className="mb-6 flex flex-wrap gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-        <div className="flex items-center space-x-3">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Row Labels:</span>
-          <button 
-            onClick={() => setShowAddLabel(true)}
-            className="px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 transition-colors rounded-md"
-            title="Add row label"
-          >
-            Add Label
-          </button>
+      <div className="mb-6 flex flex-col gap-4 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
+        {/* Current Warehouse Label */}
+        {currentWarehouse && (
+          <div className="p-5 bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-400 rounded-xl shadow-lg transform transition-all duration-300 hover:shadow-xl">
+            <div className="flex items-center justify-center">
+              <div className="flex flex-col items-center">
+                <span className="text-white font-light text-sm uppercase tracking-wider mb-1">Current Warehouse</span>
+                <span className="text-white font-bold text-3xl">{currentWarehouse}</span>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Controls Row */}
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center space-x-3">
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Row Labels:</span>
+            <button 
+              onClick={() => setShowAddLabel(true)}
+              className="px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 transition-colors rounded-md"
+              title="Add row label"
+            >
+              Add Label
+            </button>
+          </div>
+          
+          {onAddSections && (
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={onAddSections}
+                className="px-3 py-1.5 bg-green-500 text-white hover:bg-green-600 transition-colors rounded-md"
+                title="Add sections"
+              >
+                Add Sections
+              </button>
+            </div>
+          )}
         </div>
       </div>
       
