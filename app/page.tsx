@@ -3,13 +3,13 @@ import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
-import { WarehouseItem } from "@/components/WarehouseItem";
-import { WarehouseForm } from "@/components/WarehouseForm";
-import { useWarehouses } from "@/app/hooks/useWarehouses";
-import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "@/utils/warehouse-utils";
-import type { WarehouseStatus } from '@/types/database';
-import { PieChartComponent } from "@/components/ui/pie-chart";
-import { DraggableGrid } from "@/components/DraggableGrid";
+import { WarehouseItem } from "./components/WarehouseItem";
+import { WarehouseForm } from "./components/WarehouseForm";
+import { useWarehouses } from "./hooks/useWarehouses";
+import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "./utils/warehouse-utils";
+import type { WarehouseStatus } from '../types/database';
+import { PieChartComponent } from "../components/ui/pie-chart";
+import { DraggableGrid } from "./components/DraggableGrid";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
