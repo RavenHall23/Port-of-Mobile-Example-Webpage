@@ -258,77 +258,67 @@ interface RowLabelProps {
 }
 
 const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }) => {
-  const [isSwiping, setIsSwiping] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [currentX, setCurrentX] = useState(0);
-  const [showActions, setShowActions] = useState(false);
-  const labelRef = useRef<HTMLDivElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState(label.label);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setStartX(e.touches[0].clientX);
-    setIsSwiping(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isSwiping) return;
-    setCurrentX(e.touches[0].clientX);
-    const diff = currentX - startX;
-    if (Math.abs(diff) > 30) {
-      setShowActions(true);
+  const handleSave = () => {
+    if (editText.trim()) {
+      onEdit(label.rowIndex, editText);
+      setIsEditing(false);
     }
   };
 
-  const handleTouchEnd = () => {
-    setIsSwiping(false);
-    if (!showActions) {
-      setCurrentX(0);
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setEditText(label.label);
     }
   };
 
-  const handleClick = () => {
-    if (!isMobile) {
-      setShowActions(!showActions);
-    }
-  };
-
-  return (
-    <div
-      ref={labelRef}
-      className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1 group/label relative overflow-hidden"
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onClick={handleClick}
-      style={{
-        transform: isMobile ? `translateX(${currentX}px)` : 'none',
-        transition: isSwiping ? 'none' : 'transform 0.2s ease'
-      }}
-    >
-      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
-        {label.label}
-      </span>
-      <div 
-        className={`flex ml-2 ${
-          isMobile 
-            ? showActions ? 'opacity-100' : 'opacity-0'
-            : 'opacity-0 group-hover/label:opacity-100'
-        } transition-opacity duration-200`}
-      >
-        <button
-          onClick={() => onEdit(label.rowIndex, label.label)}
-          className="text-blue-500 hover:text-blue-600 text-xs p-1"
-          title="Edit label"
-        >
-          ✎
-        </button>
+  if (isEditing) {
+    return (
+      <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
+        <input
+          type="text"
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onBlur={handleSave}
+          className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-0 min-w-[60px] max-w-[120px]"
+          placeholder="Enter label"
+          autoFocus
+          size={Math.min(Math.max(editText.length, 4), 12)} // Adjust size based on content length
+        />
         <button
           onClick={() => onDelete(label.rowIndex)}
-          className="text-red-500 hover:text-red-600 text-xs p-1"
+          className="text-red-500 hover:text-red-600 text-xs p-1 ml-2"
           title="Delete label"
         >
           ×
         </button>
       </div>
+    );
+  }
+
+  return (
+    <div
+      className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1 group/label"
+      onClick={() => isMobile && setIsEditing(true)}
+      onMouseEnter={() => !isMobile && setIsEditing(true)}
+      onMouseLeave={() => !isMobile && setIsEditing(false)}
+    >
+      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
+        {label.label}
+      </span>
+      <button
+        onClick={() => setIsEditing(true)}
+        className="text-blue-500 hover:text-blue-600 text-xs p-1 ml-2 opacity-0 group-hover/label:opacity-100 transition-opacity duration-200"
+        title="Edit label"
+      >
+        ✎
+      </button>
     </div>
   );
 };
@@ -687,13 +677,12 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           {Array.from({ length: gridHeight - 1 }).map((_, index) => {
             const rowIndex = index;
             const existingLabel = rowLabels.find(label => label.rowIndex === rowIndex);
-            const isEditing = editingLabel === rowIndex;
             
             return (
               <div
                 key={`row-${rowIndex}`}
                 className="absolute flex items-center justify-center group cursor-pointer"
-                onClick={() => !existingLabel && !isEditing && handleAddLabel(rowIndex)}
+                onClick={() => !existingLabel && handleAddLabel(rowIndex)}
                 style={{
                   left: `${middleColumnIndex * gridSize}px`,
                   top: `${(rowIndex + 1) * gridSize + (isMobile ? 40 : 20)}px`,
@@ -704,20 +693,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                 }}
               >
                 <div className="flex items-center justify-center w-full">
-                  {isEditing ? (
-                    <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
-                      <input
-                        type="text"
-                        value={editingLabelText}
-                        onChange={(e) => setEditingLabelText(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        onBlur={handleSaveLabel}
-                        className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-0 w-32"
-                        placeholder="Enter label"
-                        autoFocus
-                      />
-                    </div>
-                  ) : existingLabel ? (
+                  {existingLabel ? (
                     <RowLabel
                       label={existingLabel}
                       onEdit={handleEditLabel}
