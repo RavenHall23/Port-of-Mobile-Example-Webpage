@@ -20,6 +20,7 @@
     "@types/uuid": "^10.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "eslint": "^9.0.0",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.479.0",
@@ -29,6 +30,7 @@
     "react-beautiful-dnd": "^13.1.1",
     "react-dnd": "^16.0.1",
     "react-dnd-html5-backend": "^16.0.1",
+    "react-dnd-touch-backend": "^16.0.1",
     "react-dom": "^18.2.0",
     "react-grid-layout": "^1.5.1",
     "react-swipeable": "^7.0.2",
@@ -37,9 +39,8 @@
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
     "turbo": "^2.5.0",
-    "uuid": "^11.1.0",
     "typescript": "^5.8.3",
-    "eslint": "^9.0.0"
+    "uuid": "^11.1.0"
   },
   "overrides": {
     "react-is": "^18.2.0"

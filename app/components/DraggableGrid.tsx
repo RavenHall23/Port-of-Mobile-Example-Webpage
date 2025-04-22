@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { DndProvider, useDrag, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { TouchBackend } from 'react-dnd-touch-backend';
 import { statusColors } from '../utils/warehouse-utils';
 import type { WarehouseStatus } from '../../types/database';
 
@@ -41,24 +42,52 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
   const [isTouching, setIsTouching] = useState(false);
+  const [touchStartTime, setTouchStartTime] = useState(0);
+  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
   
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'section',
-    item: { id: section.id, position: section.position },
-    collect: (monitor) => ({
-      isDragging: !!monitor.isDragging(),
-    }),
+    item: () => {
+      console.log('Drag begin - section:', section.id, 'from position:', section.position);
+      return { 
+        id: section.id, 
+        position: section.position,
+        originalPosition: section.position 
+      };
+    },
+    collect: (monitor) => {
+      const isDragging = !!monitor.isDragging();
+      console.log('Drag collect - isDragging:', isDragging);
+      return { isDragging };
+    },
+    end: (item: { id: string, position: Position, originalPosition: Position }, monitor) => {
+      console.log('Drag end - item:', item);
+      if (!monitor.didDrop()) {
+        console.log('Drag cancelled - no drop, returning to original position');
+        onMove(item.id, item.originalPosition);
+        return;
+      }
+      const dropResult = monitor.getDropResult() as { position: Position };
+      console.log('Drop result:', dropResult);
+      if (dropResult) {
+        onMove(item.id, dropResult.position);
+      }
+    },
+    canDrag: true,
   }));
 
   // Apply the drag ref to our element
   drag(ref);
 
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Prevent click if we're dragging
+    if (isDragging) return;
+    
     const newStatus = section.status === 'green' ? 'red' : 'green';
     onStatusChange(section.id, newStatus);
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleDelete = (e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation(); // Prevent triggering the status change
     onDelete(section.id);
   };
@@ -71,18 +100,46 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
     setShowDeleteButton(false);
   };
 
-  const handleTouchStart = () => {
+  const handleTouchStart = (e: React.TouchEvent) => {
+    console.log('Touch start - section:', section.id);
     setIsTouching(true);
+    setTouchStartTime(Date.now());
+    setTouchStartPos({
+      x: e.touches[0].clientX,
+      y: e.touches[0].clientY
+    });
     setShowDeleteButton(true);
   };
 
-  const handleTouchEnd = () => {
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isTouching) return;
+    
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStartPos.x;
+    const deltaY = touch.clientY - touchStartPos.y;
+    
+    // Only start dragging if we've moved a significant distance
+    if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+      console.log('Touch move - starting drag - section:', section.id);
+      // The drag will be handled by react-dnd
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    console.log('Touch end - section:', section.id);
+    const touchDuration = Date.now() - touchStartTime;
     setIsTouching(false);
-    setShowDeleteButton(false);
+    
+    // Only show delete button briefly if it was a short touch
+    if (touchDuration < 300) {
+      setTimeout(() => {
+        setShowDeleteButton(false);
+      }, 1000);
+    }
   };
 
   // Calculate position with margin to prevent overlap with grid lines
-  const margin = gridSize < 80 ? 2 : 4; // Smaller margin on mobile
+  const margin = gridSize < 80 ? 2 : 4;
   const sectionSize = gridSize - (margin * 2);
 
   // Get pattern class based on status and color blind mode
@@ -108,25 +165,41 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         isTouching ? 'scale-110 shadow-xl' : ''
       }`}
       style={{
-        left: `${section.position.x * gridSize + margin}px`,
-        top: `${section.position.y * gridSize + margin}px`,
-        width: `${sectionSize}px`,
-        height: `${sectionSize}px`,
-        transition: 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
-        zIndex: 20,
+        left: `${section.position.x * gridSize}px`,
+        top: `${section.position.y * gridSize}px`,
+        width: `${gridSize}px`,
+        height: `${gridSize}px`,
+        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        zIndex: isDragging ? 100 : 20,
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <button
         onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform ${
           isTouching ? 'scale-110 shadow-xl' : 'hover:scale-105'
         } ${
           statusColors[section.status].color
         } ${getPatternClass(section.status)}`}
+        style={{
+          touchAction: 'none',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none',
+          WebkitTapHighlightColor: 'transparent',
+        }}
       >
         <div className="flex flex-col items-center">
           <span className={`${gridSize < 80 ? 'text-xs' : 'text-sm'}`}>{section.number}</span>
@@ -138,6 +211,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       {showDeleteButton && (
         <button
           onClick={handleDelete}
+          onTouchStart={handleDelete}
           className={`absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform ${
             isTouching ? 'scale-110' : 'hover:scale-110'
           } animate-fadeIn`}
@@ -158,15 +232,27 @@ interface GridCellProps {
 
 const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [{ isOver }, drop] = useDrop(() => ({
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'section',
-    drop: (item: { id: string, position: Position }) => {
+    drop: (item: { id: string, position: Position, originalPosition: Position }, monitor) => {
+      console.log('Dropping item:', item.id, 'at grid position:', position);
       onDrop(item.id, position);
       return { position };
     },
     collect: (monitor) => ({
       isOver: !!monitor.isOver(),
+      canDrop: !!monitor.canDrop(),
     }),
+    hover: (item: { id: string, position: Position }, monitor) => {
+      if (!ref.current) {
+        return;
+      }
+
+      // Don't replace items with themselves
+      if (item.position.x === position.x && item.position.y === position.y) {
+        return;
+      }
+    },
   }));
 
   // Apply the drop ref to our element
@@ -176,7 +262,7 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
     <div
       ref={ref}
       className={`absolute ${
-        isOver ? 'bg-gray-100 dark:bg-gray-800 ring-2 ring-blue-400 dark:ring-blue-500' : ''
+        isOver && canDrop ? 'bg-gray-100 dark:bg-gray-800 ring-2 ring-blue-400 dark:ring-blue-500' : ''
       }`}
       style={{
         left: `${position.x * gridSize}px`,
@@ -185,6 +271,11 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
         height: `${gridSize}px`,
         zIndex: 10,
         transition: 'all 0.2s ease',
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
       }}
     />
   );
@@ -206,6 +297,16 @@ interface DraggableGridProps {
   colorBlindMode?: boolean;
 }
 
+// Add this helper function at the top of the file
+const isTouchDevice = () => {
+  if (typeof window === 'undefined') return false;
+  return (
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    (navigator as any).msMaxTouchPoints > 0
+  );
+};
+
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
   sections,
   onSectionMove,
@@ -216,10 +317,10 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onAddSections,
   colorBlindMode = false,
 }) => {
-  const [gridSize, setGridSize] = useState(100); // Size of each grid cell in pixels
-  const [gridWidth, setGridWidth] = useState(15); // Increased initial width
-  const [gridHeight, setGridHeight] = useState(10); // Increased initial height
-  const [middleColumnIndex, setMiddleColumnIndex] = useState(7); // Adjusted middle column index
+  const [gridSize, setGridSize] = useState(100);
+  const [gridWidth, setGridWidth] = useState(15);
+  const [gridHeight, setGridHeight] = useState(10);
+  const [middleColumnIndex, setMiddleColumnIndex] = useState(7);
   const [rowLabels, setRowLabels] = useState<RowLabel[]>([]);
   const [showAddLabel, setShowAddLabel] = useState(false);
   const [newLabelRow, setNewLabelRow] = useState<number | null>(null);
@@ -228,6 +329,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   const [editingLabelText, setEditingLabelText] = useState('');
   const [draggedSectionId, setDraggedSectionId] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
@@ -235,28 +337,23 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   // Check if device is mobile
   useEffect(() => {
     const checkIfMobile = () => {
-      const mobile = window.innerWidth < 768;
+      const mobile = window.innerWidth < 768 || isTouchDevice();
       setIsMobile(mobile);
       
       // Adjust grid size based on screen width
       if (mobile) {
-        setGridSize(60); // Smaller grid cells on mobile
-        setGridWidth(10); // Fewer columns on mobile
-        setMiddleColumnIndex(4); // Adjusted middle column for mobile
+        setGridSize(60);
+        setGridWidth(10);
+        setMiddleColumnIndex(4);
       } else {
-        setGridSize(100); // Normal grid cells on desktop
-        setGridWidth(15); // Normal columns on desktop
-        setMiddleColumnIndex(7); // Normal middle column for desktop
+        setGridSize(100);
+        setGridWidth(15);
+        setMiddleColumnIndex(7);
       }
     };
     
-    // Check on initial load
     checkIfMobile();
-    
-    // Add event listener for window resize
     window.addEventListener('resize', checkIfMobile);
-    
-    // Clean up event listener
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
@@ -329,6 +426,33 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   }, [middleColumnIndex, initialized]);
 
   const handleDrop = (sectionId: string, position: Position) => {
+    console.log('Handling drop for section:', sectionId, 'at position:', position);
+    
+    // Validate position is within grid bounds
+    if (position.x < 0 || position.x >= gridWidth || position.y < 0 || position.y >= gridHeight) {
+      console.log('Drop position out of bounds, rejecting');
+      return;
+    }
+
+    // Check if position is in middle column
+    if (position.x === middleColumnIndex) {
+      console.log('Drop position in middle column, rejecting');
+      return;
+    }
+
+    // Check if position is already occupied
+    const isOccupied = sectionStates.some(
+      section => section.id !== sectionId && 
+      section.position.x === position.x && 
+      section.position.y === position.y
+    );
+
+    if (isOccupied) {
+      console.log('Drop position occupied, rejecting');
+      return;
+    }
+
+    // Update the section position
     setSectionStates(prevStates => {
       const newStates = prevStates.map(section => {
         if (section.id === sectionId) {
@@ -445,8 +569,22 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         </div>
       </div>
       
-      <DndProvider backend={HTML5Backend}>
+      <DndProvider 
+        backend={isMobile ? TouchBackend : HTML5Backend}
+        options={{
+          enableMouseEvents: true,
+          enableTouchEvents: true,
+          enableKeyboardEvents: true,
+          enableHoverOutsideTarget: true,
+          delayTouchStart: 0,
+          delayMouseStart: 0,
+          touchSlop: 20,
+          ignoreContextMenu: true,
+          enableAutoScroll: true,
+        }}
+      >
         <div
+          ref={gridRef}
           className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-2 sm:p-4 overflow-auto"
           style={{
             width: `${gridWidth * gridSize + 16}px`,
@@ -455,6 +593,13 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             minHeight: isMobile ? '400px' : '600px',
             maxWidth: '100%',
             maxHeight: '80vh',
+            touchAction: 'none',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none',
+            WebkitOverflowScrolling: 'touch',
+            overflow: 'auto',
+            WebkitTapHighlightColor: 'transparent',
           }}
         >
           {/* Grid cells - render all cells to enable drag and drop everywhere */}
@@ -462,9 +607,14 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             const x = index % gridWidth;
             const y = Math.floor(index / gridWidth);
             
+            // Skip the middle column
+            if (x === middleColumnIndex) {
+              return null;
+            }
+            
             return (
               <GridCell
-                key={index}
+                key={`${x}-${y}`}
                 position={{ x, y }}
                 onDrop={handleDrop}
                 gridSize={gridSize}
