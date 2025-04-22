@@ -124,7 +124,9 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
         userSelect: 'none',
-        WebkitTapHighlightColor: 'transparent'
+        WebkitTapHighlightColor: 'transparent',
+        willChange: 'transform',
+        transform: 'translateZ(0)'
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -522,7 +524,10 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           ],
           getDropTargetElementsAtPoint: (x: number, y: number) => {
             return document.elementsFromPoint(x, y);
-          }
+          },
+          enableNativeDrag: true,
+          enableNativeHover: true,
+          enableScrolling: true
         }}
       >
         <div
@@ -541,7 +546,9 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             userSelect: 'none',
             WebkitOverflowScrolling: 'touch',
             overflow: 'auto',
-            WebkitTapHighlightColor: 'transparent'
+            WebkitTapHighlightColor: 'transparent',
+            willChange: 'transform',
+            transform: 'translateZ(0)'
           }}
         >
           {/* Grid cells - render all cells to enable drag and drop everywhere */}
