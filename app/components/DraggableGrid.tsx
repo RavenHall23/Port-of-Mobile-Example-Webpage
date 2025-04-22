@@ -41,33 +41,26 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
-  const [isTouching, setIsTouching] = useState(false);
   
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'section',
     item: () => {
-      console.log('Drag begin - section:', section.id, 'from position:', section.position);
       return { 
         id: section.id, 
         position: section.position,
         originalPosition: section.position 
       };
     },
-    collect: (monitor) => {
-      const isDragging = !!monitor.isDragging();
-      console.log('Drag collect - isDragging:', isDragging);
-      return { isDragging };
-    },
+    collect: (monitor) => ({
+      isDragging: !!monitor.isDragging()
+    }),
     end: (item: { id: string, position: Position, originalPosition: Position }, monitor) => {
-      console.log('Drag end - item:', item);
       if (!monitor.didDrop()) {
-        console.log('Drag cancelled - no drop, returning to original position');
         onMove(item.id, item.originalPosition);
         return;
       }
       const dropResult = monitor.getDropResult() as { position: Position };
-      console.log('Drop result:', dropResult);
-      if (dropResult) {
+      if (dropResult && dropResult.position) {
         onMove(item.id, dropResult.position);
       }
     },
@@ -78,15 +71,13 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   drag(ref);
 
   const handleClick = (e: React.MouseEvent | React.TouchEvent) => {
-    // Prevent click if we're dragging
     if (isDragging) return;
-    
     const newStatus = section.status === 'green' ? 'red' : 'green';
     onStatusChange(section.id, newStatus);
   };
 
   const handleDelete = (e: React.MouseEvent | React.TouchEvent) => {
-    e.stopPropagation(); // Prevent triggering the status change
+    e.stopPropagation();
     onDelete(section.id);
   };
 
@@ -95,16 +86,6 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   };
 
   const handleMouseLeave = () => {
-    setShowDeleteButton(false);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setIsTouching(true);
-    setShowDeleteButton(true);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    setIsTouching(false);
     setShowDeleteButton(false);
   };
 
@@ -131,15 +112,13 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   return (
     <div
       ref={ref}
-      className={`absolute cursor-move ${isDragging ? 'opacity-50 scale-105' : ''} ${
-        isTouching ? 'scale-110 shadow-xl' : ''
-      }`}
+      className={`absolute cursor-move ${isDragging ? 'opacity-50 scale-105' : ''}`}
       style={{
         left: `${section.position.x * gridSize + margin}px`,
         top: `${section.position.y * gridSize + margin}px`,
         width: `${sectionSize}px`,
         height: `${sectionSize}px`,
-        transition: isDragging ? 'none' : 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        transition: isDragging ? 'none' : 'all 0.1s ease',
         zIndex: isDragging ? 100 : 20,
         touchAction: 'none',
         WebkitTouchCallout: 'none',
@@ -149,16 +128,10 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
     >
       <button
         onClick={handleClick}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform ${
-          isTouching ? 'scale-110 shadow-xl' : 'hover:scale-105'
-        } ${
+        className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg ${
           statusColors[section.status].color
         } ${getPatternClass(section.status)}`}
         style={{
@@ -179,10 +152,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       {showDeleteButton && (
         <button
           onClick={handleDelete}
-          onTouchStart={handleDelete}
-          className={`absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform ${
-            isTouching ? 'scale-110' : 'hover:scale-110'
-          } animate-fadeIn`}
+          className="absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform hover:scale-110 animate-fadeIn"
           title="Delete section"
         >
           ×
@@ -206,7 +176,6 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'section',
     drop: (item: { id: string, position: Position, originalPosition: Position }, monitor) => {
-      console.log('Dropping item:', item.id, 'at grid position:', position);
       onDrop(item.id, position);
       return { position };
     },
@@ -215,14 +184,8 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
       canDrop: !!monitor.canDrop(),
     }),
     hover: (item: { id: string, position: Position }, monitor) => {
-      if (!ref.current) {
-        return;
-      }
-
-      // Don't replace items with themselves
-      if (item.position.x === position.x && item.position.y === position.y) {
-        return;
-      }
+      if (!ref.current) return;
+      if (item.position.x === position.x && item.position.y === position.y) return;
     },
   }));
 
@@ -241,7 +204,7 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
         width: `${cellSize}px`,
         height: `${cellSize}px`,
         zIndex: 10,
-        transition: 'all 0.2s ease',
+        transition: 'all 0.1s ease',
         touchAction: 'none',
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
@@ -427,6 +390,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     setSectionStates(prevStates => {
       const newStates = prevStates.map(section => {
         if (section.id === sectionId) {
+          console.log('Updating section position:', sectionId, 'to:', position);
           // Extract warehouse letter and section number from the section ID
           const warehouseLetter = section.id.charAt(0);
           const sectionNumber = parseInt(section.id.slice(1));
@@ -549,9 +513,16 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           enableHoverOutsideTarget: true,
           delayTouchStart: 0,
           delayMouseStart: 0,
-          touchSlop: 5,
+          touchSlop: 2, // Reduced touch slop for faster response
           ignoreContextMenu: true,
           enableAutoScroll: true,
+          scrollAngleRanges: [
+            { start: 30, end: 150 },
+            { start: 210, end: 330 }
+          ],
+          getDropTargetElementsAtPoint: (x: number, y: number) => {
+            return document.elementsFromPoint(x, y);
+          },
         }}
       >
         <div
