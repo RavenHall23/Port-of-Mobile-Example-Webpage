@@ -165,10 +165,10 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         isTouching ? 'scale-110 shadow-xl' : ''
       }`}
       style={{
-        left: `${section.position.x * gridSize}px`,
-        top: `${section.position.y * gridSize}px`,
-        width: `${gridSize}px`,
-        height: `${gridSize}px`,
+        left: `${section.position.x * gridSize + margin}px`,
+        top: `${section.position.y * gridSize + margin}px`,
+        width: `${sectionSize}px`,
+        height: `${sectionSize}px`,
         transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
         zIndex: isDragging ? 100 : 20,
         touchAction: 'none',
@@ -232,6 +232,9 @@ interface GridCellProps {
 
 const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
   const ref = useRef<HTMLDivElement>(null);
+  const margin = gridSize < 80 ? 2 : 4;
+  const cellSize = gridSize - (margin * 2);
+
   const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'section',
     drop: (item: { id: string, position: Position, originalPosition: Position }, monitor) => {
@@ -265,10 +268,10 @@ const GridCell: React.FC<GridCellProps> = ({ position, onDrop, gridSize }) => {
         isOver && canDrop ? 'bg-gray-100 dark:bg-gray-800 ring-2 ring-blue-400 dark:ring-blue-500' : ''
       }`}
       style={{
-        left: `${position.x * gridSize}px`,
-        top: `${position.y * gridSize}px`,
-        width: `${gridSize}px`,
-        height: `${gridSize}px`,
+        left: `${position.x * gridSize + margin}px`,
+        top: `${position.y * gridSize + margin}px`,
+        width: `${cellSize}px`,
+        height: `${cellSize}px`,
         zIndex: 10,
         transition: 'all 0.2s ease',
         touchAction: 'none',
