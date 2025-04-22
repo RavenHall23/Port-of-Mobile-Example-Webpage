@@ -124,7 +124,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
         userSelect: 'none',
-        WebkitTapHighlightColor: 'transparent',
+        WebkitTapHighlightColor: 'transparent'
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -135,11 +135,11 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
           statusColors[section.status].color
         } ${getPatternClass(section.status)}`}
         style={{
+          touchAction: 'none',
           WebkitTouchCallout: 'none',
           WebkitUserSelect: 'none',
           userSelect: 'none',
-          WebkitTapHighlightColor: 'transparent',
-          touchAction: 'none'
+          WebkitTapHighlightColor: 'transparent'
         }}
       >
         <div className="flex flex-col items-center">
