@@ -692,7 +692,8 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             return (
               <div
                 key={`row-${rowIndex}`}
-                className="absolute flex items-center justify-center group"
+                className="absolute flex items-center justify-center group cursor-pointer"
+                onClick={() => !existingLabel && !isEditing && handleAddLabel(rowIndex)}
                 style={{
                   left: `${middleColumnIndex * gridSize}px`,
                   top: `${(rowIndex + 1) * gridSize + (isMobile ? 40 : 20)}px`,
@@ -724,16 +725,9 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                       isMobile={isMobile}
                     />
                   ) : (
-                    <button
-                      onClick={() => handleAddLabel(rowIndex)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white dark:bg-gray-800 rounded-full w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center shadow-md hover:bg-gray-100 dark:hover:bg-gray-700"
-                      title="Add label"
-                      style={{
-                        marginTop: isMobile ? '20px' : '10px'
-                      }}
-                    >
-                      <span className="text-blue-500 text-lg">+</span>
-                    </button>
+                    <div className="w-full h-full flex items-center justify-center">
+                      <div className="h-px w-full bg-gray-200 dark:bg-gray-700"></div>
+                    </div>
                   )}
                 </div>
               </div>
