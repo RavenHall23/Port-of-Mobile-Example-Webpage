@@ -29,6 +29,7 @@ interface DraggableSectionProps {
   onDelete: (id: string) => void;
   gridSize: number;
   colorBlindMode: boolean;
+  isMobile: boolean;
 }
 
 const DraggableSection: React.FC<DraggableSectionProps> = ({ 
@@ -37,7 +38,8 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   onStatusChange, 
   onDelete,
   gridSize,
-  colorBlindMode
+  colorBlindMode,
+  isMobile
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
@@ -90,8 +92,9 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   };
 
   // Calculate position with margin to prevent overlap with grid lines
-  const margin = gridSize < 80 ? 2 : 4;
+  const margin = gridSize < 100 ? 4 : 4;
   const sectionSize = gridSize - (margin * 2);
+  const bottomMargin = isMobile ? 40 : 20; // Increased bottom margin
 
   // Get pattern class based on status and color blind mode
   const getPatternClass = (status: WarehouseStatus) => {
@@ -118,6 +121,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         top: `${section.position.y * gridSize + margin}px`,
         width: `${sectionSize}px`,
         height: `${sectionSize}px`,
+        marginBottom: `${bottomMargin}px`, // Increased bottom margin
         transition: isDragging ? 'none' : 'all 0.1s ease',
         zIndex: isDragging ? 100 : 20,
         touchAction: 'none',
@@ -143,13 +147,14 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
           userSelect: 'none',
           WebkitTapHighlightColor: 'transparent',
           willChange: 'transform',
-          transform: 'translateZ(0)'
+          transform: 'translateZ(0)',
+          padding: '8px'
         }}
       >
         <div className="flex flex-col items-center">
-          <span className={`${gridSize < 80 ? 'text-xs' : 'text-sm'}`}>{section.number}</span>
+          <span className={`${gridSize < 100 ? 'text-lg' : 'text-sm'}`}>{section.number}</span>
           {getStatusIndicator(section.status) && (
-            <span className="text-white font-bold">{getStatusIndicator(section.status)}</span>
+            <span className="text-white font-bold text-lg">{getStatusIndicator(section.status)}</span>
           )}
         </div>
       </button>
@@ -245,6 +250,89 @@ const isTouchDevice = () => {
   );
 };
 
+interface RowLabelProps {
+  label: RowLabel;
+  onEdit: (rowIndex: number, currentLabel: string) => void;
+  onDelete: (rowIndex: number) => void;
+  isMobile: boolean;
+}
+
+const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }) => {
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [currentX, setCurrentX] = useState(0);
+  const [showActions, setShowActions] = useState(false);
+  const labelRef = useRef<HTMLDivElement>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setStartX(e.touches[0].clientX);
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return;
+    setCurrentX(e.touches[0].clientX);
+    const diff = currentX - startX;
+    if (Math.abs(diff) > 30) {
+      setShowActions(true);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsSwiping(false);
+    if (!showActions) {
+      setCurrentX(0);
+    }
+  };
+
+  const handleClick = () => {
+    if (!isMobile) {
+      setShowActions(!showActions);
+    }
+  };
+
+  return (
+    <div
+      ref={labelRef}
+      className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1 group/label relative overflow-hidden"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onClick={handleClick}
+      style={{
+        transform: isMobile ? `translateX(${currentX}px)` : 'none',
+        transition: isSwiping ? 'none' : 'transform 0.2s ease'
+      }}
+    >
+      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
+        {label.label}
+      </span>
+      <div 
+        className={`flex ml-2 ${
+          isMobile 
+            ? showActions ? 'opacity-100' : 'opacity-0'
+            : 'opacity-0 group-hover/label:opacity-100'
+        } transition-opacity duration-200`}
+      >
+        <button
+          onClick={() => onEdit(label.rowIndex, label.label)}
+          className="text-blue-500 hover:text-blue-600 text-xs p-1"
+          title="Edit label"
+        >
+          ✎
+        </button>
+        <button
+          onClick={() => onDelete(label.rowIndex)}
+          className="text-red-500 hover:text-red-600 text-xs p-1"
+          title="Delete label"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+  );
+};
+
 export const DraggableGrid: React.FC<DraggableGridProps> = ({
   sections,
   onSectionMove,
@@ -280,9 +368,9 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       
       // Adjust grid size based on screen width
       if (mobile) {
-        setGridSize(60);
-        setGridWidth(10);
-        setMiddleColumnIndex(4);
+        setGridSize(80);
+        setGridWidth(8);
+        setMiddleColumnIndex(3);
       } else {
         setGridSize(100);
         setGridWidth(15);
@@ -606,11 +694,12 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                 key={`row-${rowIndex}`}
                 className="absolute flex items-center justify-center group"
                 style={{
-                  left: 0,
-                  top: `${(rowIndex + 1) * gridSize - 15}px`,
-                  width: `${gridWidth * gridSize}px`,
+                  left: `${middleColumnIndex * gridSize}px`,
+                  top: `${(rowIndex + 1) * gridSize + (isMobile ? 40 : 20)}px`,
+                  width: `${gridSize}px`,
                   height: '30px',
                   zIndex: 15,
+                  marginTop: isMobile ? '30px' : '15px'
                 }}
               >
                 <div className="flex items-center justify-center w-full">
@@ -628,32 +717,20 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                       />
                     </div>
                   ) : existingLabel ? (
-                    <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
-                      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
-                        {existingLabel.label}
-                      </span>
-                      <div className="flex ml-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => handleEditLabel(rowIndex, existingLabel.label)}
-                          className="text-blue-500 hover:text-blue-600 text-xs ml-2 p-1"
-                          title="Edit label"
-                        >
-                          ✎
-                        </button>
-                        <button
-                          onClick={() => handleDeleteLabel(rowIndex)}
-                          className="text-red-500 hover:text-red-600 text-xs ml-1 p-1"
-                          title="Delete label"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    </div>
+                    <RowLabel
+                      label={existingLabel}
+                      onEdit={handleEditLabel}
+                      onDelete={handleDeleteLabel}
+                      isMobile={isMobile}
+                    />
                   ) : (
                     <button
                       onClick={() => handleAddLabel(rowIndex)}
-                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-800 rounded-full w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center shadow-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white dark:bg-gray-800 rounded-full w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center shadow-md hover:bg-gray-100 dark:hover:bg-gray-700"
                       title="Add label"
+                      style={{
+                        marginTop: isMobile ? '20px' : '10px'
+                      }}
                     >
                       <span className="text-blue-500 text-lg">+</span>
                     </button>
@@ -676,6 +753,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
               onDelete={handleDelete}
               gridSize={gridSize}
               colorBlindMode={colorBlindMode}
+              isMobile={isMobile}
             />
           ))}
         </div>
