@@ -42,8 +42,6 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
   const [isTouching, setIsTouching] = useState(false);
-  const [touchStartTime, setTouchStartTime] = useState(0);
-  const [touchStartPos, setTouchStartPos] = useState({ x: 0, y: 0 });
   
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'section',
@@ -101,41 +99,13 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    console.log('Touch start - section:', section.id);
     setIsTouching(true);
-    setTouchStartTime(Date.now());
-    setTouchStartPos({
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY
-    });
     setShowDeleteButton(true);
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isTouching) return;
-    
-    const touch = e.touches[0];
-    const deltaX = touch.clientX - touchStartPos.x;
-    const deltaY = touch.clientY - touchStartPos.y;
-    
-    // Only start dragging if we've moved a significant distance
-    if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-      console.log('Touch move - starting drag - section:', section.id);
-      // The drag will be handled by react-dnd
-    }
-  };
-
   const handleTouchEnd = (e: React.TouchEvent) => {
-    console.log('Touch end - section:', section.id);
-    const touchDuration = Date.now() - touchStartTime;
     setIsTouching(false);
-    
-    // Only show delete button briefly if it was a short touch
-    if (touchDuration < 300) {
-      setTimeout(() => {
-        setShowDeleteButton(false);
-      }, 1000);
-    }
+    setShowDeleteButton(false);
   };
 
   // Calculate position with margin to prevent overlap with grid lines
@@ -169,7 +139,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
         top: `${section.position.y * gridSize + margin}px`,
         width: `${sectionSize}px`,
         height: `${sectionSize}px`,
-        transition: isDragging ? 'none' : 'all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)',
+        transition: isDragging ? 'none' : 'all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1)',
         zIndex: isDragging ? 100 : 20,
         touchAction: 'none',
         WebkitTouchCallout: 'none',
@@ -180,13 +150,11 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
       <button
         onClick={handleClick}
         onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform ${
           isTouching ? 'scale-110 shadow-xl' : 'hover:scale-105'
@@ -581,7 +549,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           enableHoverOutsideTarget: true,
           delayTouchStart: 0,
           delayMouseStart: 0,
-          touchSlop: 20,
+          touchSlop: 5,
           ignoreContextMenu: true,
           enableAutoScroll: true,
         }}
