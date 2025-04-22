@@ -259,17 +259,48 @@ interface RowLabelProps {
 
 const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(label.label);
+  const [editedLabel, setEditedLabel] = useState(label.label);
+  const [isSwiping, setIsSwiping] = useState(false);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartX = useRef(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleEdit = () => {
     setIsEditing(true);
   };
 
   const handleSave = () => {
-    if (editText.trim()) {
-      onEdit(label.rowIndex, editText);
-    }
+    onEdit(label.rowIndex, editedLabel);
     setIsEditing(false);
+  };
+
+  const handleDelete = () => {
+    onDelete(label.rowIndex);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    setIsSwiping(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isSwiping) return;
+    
+    const currentX = e.touches[0].clientX;
+    const diff = touchStartX.current - currentX;
+    
+    // Only allow swiping to the left (negative offset)
+    if (diff > 0) {
+      setSwipeOffset(-Math.min(diff, 80)); // Max swipe distance of 80px
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsSwiping(false);
+    if (swipeOffset < -40) { // If swiped more than halfway
+      handleDelete();
+    }
+    setSwipeOffset(0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -277,43 +308,56 @@ const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }
       handleSave();
     } else if (e.key === 'Escape') {
       setIsEditing(false);
-      setEditText(label.label);
+      setEditedLabel(label.label);
     }
   };
 
-  if (isEditing) {
-    return (
-      <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
-        <input
-          type="text"
-          value={editText}
-          onChange={(e) => setEditText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onBlur={handleSave}
-          className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium bg-transparent border-none focus:outline-none focus:ring-0 w-32"
-          placeholder="Enter label"
-          autoFocus
-        />
-        <button
-          onClick={() => onDelete(label.rowIndex)}
-          className="text-red-500 hover:text-red-600 text-xs p-1 ml-2"
-          title="Delete label"
-        >
-          ×
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <div
-      className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1 group/label"
-      onClick={() => isMobile && handleEdit()}
-      onMouseEnter={() => !isMobile && handleEdit()}
+    <div 
+      className="relative overflow-hidden"
+      ref={containerRef}
     >
-      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
-        {label.label}
-      </span>
+      {/* Delete button that appears when swiping */}
+      <div 
+        className="absolute right-0 top-0 h-full w-20 bg-red-500 flex items-center justify-center"
+        style={{
+          transform: `translateX(${swipeOffset}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.3s ease-out'
+        }}
+      >
+        <span className="text-white font-medium">Delete</span>
+      </div>
+
+      {/* Main content */}
+      <div 
+        className="flex items-center gap-2 relative z-10"
+        style={{
+          transform: `translateX(${swipeOffset}px)`,
+          transition: isSwiping ? 'none' : 'transform 0.3s ease-out'
+        }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {isEditing ? (
+          <input
+            type="text"
+            value={editedLabel}
+            onChange={(e) => setEditedLabel(e.target.value)}
+            onBlur={handleSave}
+            onKeyDown={handleKeyDown}
+            className="w-24 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700"
+            autoFocus
+          />
+        ) : (
+          <div 
+            className="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-sm"
+            onClick={handleEdit}
+          >
+            <span className="text-sm font-medium">{label.label}</span>
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -701,14 +745,29 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                         placeholder="Enter label"
                         autoFocus
                       />
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteLabel(rowIndex);
+                        }}
+                        className="text-red-500 hover:text-red-600 text-xs p-1 ml-2"
+                        title="Delete label"
+                      >
+                        ×
+                      </button>
                     </div>
                   ) : existingLabel ? (
-                    <RowLabel
-                      label={existingLabel}
-                      onEdit={handleEditLabel}
-                      onDelete={handleDeleteLabel}
-                      isMobile={isMobile}
-                    />
+                    <div
+                      className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditLabel(rowIndex, existingLabel.label);
+                      }}
+                    >
+                      <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
+                        {existingLabel.label}
+                      </span>
+                    </div>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
                       <div className="h-px w-full bg-gray-200 dark:bg-gray-700"></div>
