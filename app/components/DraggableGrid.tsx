@@ -4,6 +4,7 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import { statusColors } from '../utils/warehouse-utils';
 import type { WarehouseStatus } from '../../types/database';
+import { useSwipeable } from 'react-swipeable';
 
 interface Position {
   x: number;
@@ -260,47 +261,27 @@ interface RowLabelProps {
 const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedLabel, setEditedLabel] = useState(label.label);
-  const [isSwiping, setIsSwiping] = useState(false);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const touchStartX = useRef(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleEdit = () => {
-    setIsEditing(true);
+    if (!isDragging) {
+      console.log('Edit mode activated');
+      setIsEditing(true);
+    }
   };
 
   const handleSave = () => {
+    console.log('Saving label:', editedLabel);
     onEdit(label.rowIndex, editedLabel);
     setIsEditing(false);
   };
 
   const handleDelete = () => {
+    console.log('Deleting label for row:', label.rowIndex);
     onDelete(label.rowIndex);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    setIsSwiping(true);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isSwiping) return;
-    
-    const currentX = e.touches[0].clientX;
-    const diff = touchStartX.current - currentX;
-    
-    // Only allow swiping to the left (negative offset)
-    if (diff > 0) {
-      setSwipeOffset(-Math.min(diff, 80)); // Max swipe distance of 80px
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsSwiping(false);
-    if (swipeOffset < -40) { // If swiped more than halfway
-      handleDelete();
-    }
-    setSwipeOffset(0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -312,32 +293,94 @@ const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }
     }
   };
 
+  const handleStart = (clientX: number, eventType: string) => {
+    console.log(`${eventType} started at:`, clientX);
+    touchStartX.current = clientX;
+    setIsDragging(true);
+  };
+
+  const handleMove = (clientX: number, eventType: string) => {
+    if (!isDragging) return;
+    
+    const diff = clientX - touchStartX.current;
+    console.log(`${eventType} moving:`, diff, 'from start:', touchStartX.current);
+    
+    // Only allow swiping left (negative values)
+    if (diff < 0) {
+      setSwipeOffset(diff);
+    }
+  };
+
+  const handleEnd = (eventType: string) => {
+    console.log(`${eventType} ended, final offset:`, swipeOffset);
+    setIsDragging(false);
+    
+    // If swiped more than 100px, trigger delete
+    if (Math.abs(swipeOffset) > 100) {
+      console.log('Swipe threshold reached, deleting...');
+      handleDelete();
+    }
+    setSwipeOffset(0);
+  };
+
   return (
     <div 
-      className="relative overflow-hidden"
       ref={containerRef}
+      className="relative overflow-hidden w-full select-none touch-none"
+      onTouchStart={(e) => {
+        console.log('Touch start event triggered');
+        e.preventDefault();
+        handleStart(e.touches[0].clientX, 'touch');
+      }}
+      onTouchMove={(e) => {
+        console.log('Touch move event triggered');
+        e.preventDefault();
+        handleMove(e.touches[0].clientX, 'touch');
+      }}
+      onTouchEnd={(e) => {
+        console.log('Touch end event triggered');
+        e.preventDefault();
+        handleEnd('touch');
+      }}
+      onMouseDown={(e) => {
+        console.log('Mouse down event triggered');
+        e.preventDefault();
+        handleStart(e.clientX, 'mouse');
+      }}
+      onMouseMove={(e) => {
+        if (isDragging) {
+          console.log('Mouse move event triggered');
+          e.preventDefault();
+          handleMove(e.clientX, 'mouse');
+        }
+      }}
+      onMouseUp={(e) => {
+        console.log('Mouse up event triggered');
+        e.preventDefault();
+        handleEnd('mouse');
+      }}
+      onMouseLeave={(e) => {
+        if (isDragging) {
+          console.log('Mouse leave event triggered');
+          e.preventDefault();
+          handleEnd('mouse');
+        }
+      }}
+      style={{ 
+        touchAction: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent'
+      }}
     >
-      {/* Delete button that appears when swiping */}
       <div 
-        className="absolute right-0 top-0 h-full w-20 bg-red-500 flex items-center justify-center"
-        style={{
+        className="flex items-center gap-2 transition-transform duration-200"
+        style={{ 
           transform: `translateX(${swipeOffset}px)`,
-          transition: isSwiping ? 'none' : 'transform 0.3s ease-out'
+          transition: swipeOffset === 0 ? 'transform 0.2s ease-out' : 'none',
+          willChange: 'transform'
         }}
-      >
-        <span className="text-white font-medium">Delete</span>
-      </div>
-
-      {/* Main content */}
-      <div 
-        className="flex items-center gap-2 relative z-10"
-        style={{
-          transform: `translateX(${swipeOffset}px)`,
-          transition: isSwiping ? 'none' : 'transform 0.3s ease-out'
-        }}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
       >
         {isEditing ? (
           <input
@@ -351,12 +394,24 @@ const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }
           />
         ) : (
           <div 
-            className="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-800 px-3 py-2 rounded-lg shadow-sm"
+            className="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1 w-full"
             onClick={handleEdit}
           >
             <span className="text-sm font-medium">{label.label}</span>
           </div>
         )}
+      </div>
+      
+      {/* Delete indicator */}
+      <div 
+        className="absolute right-0 top-0 h-full flex items-center justify-center bg-red-500 text-white px-4"
+        style={{ 
+          width: `${Math.abs(swipeOffset)}px`,
+          transform: `translateX(${swipeOffset < 0 ? '100%' : '0'})`,
+          transition: swipeOffset === 0 ? 'width 0.2s ease-out, transform 0.2s ease-out' : 'none'
+        }}
+      >
+        <span className="text-sm font-medium whitespace-nowrap">Delete</span>
       </div>
     </div>
   );
