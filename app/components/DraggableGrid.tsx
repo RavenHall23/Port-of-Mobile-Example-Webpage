@@ -40,6 +40,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [showDeleteButton, setShowDeleteButton] = useState(false);
+  const [isTouching, setIsTouching] = useState(false);
   
   const [{ isDragging }, drag] = useDrag(() => ({
     type: 'section',
@@ -70,6 +71,16 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
     setShowDeleteButton(false);
   };
 
+  const handleTouchStart = () => {
+    setIsTouching(true);
+    setShowDeleteButton(true);
+  };
+
+  const handleTouchEnd = () => {
+    setIsTouching(false);
+    setShowDeleteButton(false);
+  };
+
   // Calculate position with margin to prevent overlap with grid lines
   const margin = gridSize < 80 ? 2 : 4; // Smaller margin on mobile
   const sectionSize = gridSize - (margin * 2);
@@ -93,7 +104,9 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   return (
     <div
       ref={ref}
-      className={`absolute cursor-move ${isDragging ? 'opacity-50 scale-105' : ''}`}
+      className={`absolute cursor-move ${isDragging ? 'opacity-50 scale-105' : ''} ${
+        isTouching ? 'scale-110 shadow-xl' : ''
+      }`}
       style={{
         left: `${section.position.x * gridSize + margin}px`,
         top: `${section.position.y * gridSize + margin}px`,
@@ -104,12 +117,14 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      onTouchStart={handleMouseEnter}
-      onTouchEnd={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       <button
         onClick={handleClick}
-        className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform hover:scale-105 ${
+        className={`w-full h-full rounded-lg flex items-center justify-center text-white font-semibold shadow-lg hover:shadow-xl transition-all transform ${
+          isTouching ? 'scale-110 shadow-xl' : 'hover:scale-105'
+        } ${
           statusColors[section.status].color
         } ${getPatternClass(section.status)}`}
       >
@@ -123,7 +138,9 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       {showDeleteButton && (
         <button
           onClick={handleDelete}
-          className="absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform hover:scale-110 animate-fadeIn"
+          className={`absolute -top-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-md hover:bg-red-600 transition-all transform ${
+            isTouching ? 'scale-110' : 'hover:scale-110'
+          } animate-fadeIn`}
           title="Delete section"
         >
           ×
