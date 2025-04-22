@@ -141,7 +141,9 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
           WebkitTouchCallout: 'none',
           WebkitUserSelect: 'none',
           userSelect: 'none',
-          WebkitTapHighlightColor: 'transparent'
+          WebkitTapHighlightColor: 'transparent',
+          willChange: 'transform',
+          transform: 'translateZ(0)'
         }}
       >
         <div className="flex flex-col items-center">
@@ -527,7 +529,13 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           },
           enableNativeDrag: true,
           enableNativeHover: true,
-          enableScrolling: true
+          enableScrolling: true,
+          enableDefaultTouchEvents: false,
+          enableDefaultMouseEvents: false,
+          enableDefaultKeyboardEvents: false,
+          touchStartPreventDefault: false,
+          touchMovePreventDefault: false,
+          touchEndPreventDefault: false
         }}
       >
         <div
