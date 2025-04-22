@@ -135,11 +135,11 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
           statusColors[section.status].color
         } ${getPatternClass(section.status)}`}
         style={{
-          touchAction: 'none',
           WebkitTouchCallout: 'none',
           WebkitUserSelect: 'none',
           userSelect: 'none',
           WebkitTapHighlightColor: 'transparent',
+          touchAction: 'none'
         }}
       >
         <div className="flex flex-col items-center">
@@ -513,7 +513,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           enableHoverOutsideTarget: true,
           delayTouchStart: 0,
           delayMouseStart: 0,
-          touchSlop: 2, // Reduced touch slop for faster response
+          touchSlop: 0,
           ignoreContextMenu: true,
           enableAutoScroll: true,
           scrollAngleRanges: [
@@ -522,7 +522,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           ],
           getDropTargetElementsAtPoint: (x: number, y: number) => {
             return document.elementsFromPoint(x, y);
-          },
+          }
         }}
       >
         <div
@@ -541,7 +541,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             userSelect: 'none',
             WebkitOverflowScrolling: 'touch',
             overflow: 'auto',
-            WebkitTapHighlightColor: 'transparent',
+            WebkitTapHighlightColor: 'transparent'
           }}
         >
           {/* Grid cells - render all cells to enable drag and drop everywhere */}
