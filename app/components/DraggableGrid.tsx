@@ -4,7 +4,6 @@ import { HTML5Backend } from 'react-dnd-html5-backend';
 import { TouchBackend } from 'react-dnd-touch-backend';
 import { statusColors } from '../utils/warehouse-utils';
 import type { WarehouseStatus } from '../../types/database';
-import { useSwipeable } from 'react-swipeable';
 
 interface Position {
   x: number;
@@ -248,172 +247,6 @@ const isTouchDevice = () => {
     'ontouchstart' in window ||
     navigator.maxTouchPoints > 0 ||
     (navigator as any).msMaxTouchPoints > 0
-  );
-};
-
-interface RowLabelProps {
-  label: RowLabel;
-  onEdit: (rowIndex: number, currentLabel: string) => void;
-  onDelete: (rowIndex: number) => void;
-  isMobile: boolean;
-}
-
-const RowLabel: React.FC<RowLabelProps> = ({ label, onEdit, onDelete, isMobile }) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedLabel, setEditedLabel] = useState(label.label);
-  const [swipeOffset, setSwipeOffset] = useState(0);
-  const touchStartX = useRef(0);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const handleEdit = () => {
-    if (!isDragging) {
-      console.log('Edit mode activated');
-      setIsEditing(true);
-    }
-  };
-
-  const handleSave = () => {
-    console.log('Saving label:', editedLabel);
-    onEdit(label.rowIndex, editedLabel);
-    setIsEditing(false);
-  };
-
-  const handleDelete = () => {
-    console.log('Deleting label for row:', label.rowIndex);
-    onDelete(label.rowIndex);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSave();
-    } else if (e.key === 'Escape') {
-      setIsEditing(false);
-      setEditedLabel(label.label);
-    }
-  };
-
-  const handleStart = (clientX: number, eventType: string) => {
-    console.log(`${eventType} started at:`, clientX);
-    touchStartX.current = clientX;
-    setIsDragging(true);
-  };
-
-  const handleMove = (clientX: number, eventType: string) => {
-    if (!isDragging) return;
-    
-    const diff = clientX - touchStartX.current;
-    console.log(`${eventType} moving:`, diff, 'from start:', touchStartX.current);
-    
-    // Only allow swiping left (negative values)
-    if (diff < 0) {
-      setSwipeOffset(diff);
-    }
-  };
-
-  const handleEnd = (eventType: string) => {
-    console.log(`${eventType} ended, final offset:`, swipeOffset);
-    setIsDragging(false);
-    
-    // If swiped more than 100px, trigger delete
-    if (Math.abs(swipeOffset) > 100) {
-      console.log('Swipe threshold reached, deleting...');
-      handleDelete();
-    }
-    setSwipeOffset(0);
-  };
-
-  return (
-    <div 
-      ref={containerRef}
-      className="relative overflow-hidden w-full select-none touch-none"
-      onTouchStart={(e) => {
-        console.log('Touch start event triggered');
-        e.preventDefault();
-        handleStart(e.touches[0].clientX, 'touch');
-      }}
-      onTouchMove={(e) => {
-        console.log('Touch move event triggered');
-        e.preventDefault();
-        handleMove(e.touches[0].clientX, 'touch');
-      }}
-      onTouchEnd={(e) => {
-        console.log('Touch end event triggered');
-        e.preventDefault();
-        handleEnd('touch');
-      }}
-      onMouseDown={(e) => {
-        console.log('Mouse down event triggered');
-        e.preventDefault();
-        handleStart(e.clientX, 'mouse');
-      }}
-      onMouseMove={(e) => {
-        if (isDragging) {
-          console.log('Mouse move event triggered');
-          e.preventDefault();
-          handleMove(e.clientX, 'mouse');
-        }
-      }}
-      onMouseUp={(e) => {
-        console.log('Mouse up event triggered');
-        e.preventDefault();
-        handleEnd('mouse');
-      }}
-      onMouseLeave={(e) => {
-        if (isDragging) {
-          console.log('Mouse leave event triggered');
-          e.preventDefault();
-          handleEnd('mouse');
-        }
-      }}
-      style={{ 
-        touchAction: 'none',
-        WebkitTouchCallout: 'none',
-        WebkitUserSelect: 'none',
-        userSelect: 'none',
-        WebkitTapHighlightColor: 'transparent'
-      }}
-    >
-      <div 
-        className="flex items-center gap-2 transition-transform duration-200"
-        style={{ 
-          transform: `translateX(${swipeOffset}px)`,
-          transition: swipeOffset === 0 ? 'transform 0.2s ease-out' : 'none',
-          willChange: 'transform'
-        }}
-      >
-        {isEditing ? (
-          <input
-            type="text"
-            value={editedLabel}
-            onChange={(e) => setEditedLabel(e.target.value)}
-            onBlur={handleSave}
-            onKeyDown={handleKeyDown}
-            className="w-24 px-2 py-1 text-sm border rounded dark:bg-gray-800 dark:border-gray-700"
-            autoFocus
-          />
-        ) : (
-          <div 
-            className="flex items-center gap-2 cursor-pointer bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1 w-full"
-            onClick={handleEdit}
-          >
-            <span className="text-sm font-medium">{label.label}</span>
-          </div>
-        )}
-      </div>
-      
-      {/* Delete indicator */}
-      <div 
-        className="absolute right-0 top-0 h-full flex items-center justify-center bg-red-500 text-white px-4"
-        style={{ 
-          width: `${Math.abs(swipeOffset)}px`,
-          transform: `translateX(${swipeOffset < 0 ? '100%' : '0'})`,
-          transition: swipeOffset === 0 ? 'width 0.2s ease-out, transform 0.2s ease-out' : 'none'
-        }}
-      >
-        <span className="text-sm font-medium whitespace-nowrap">Delete</span>
-      </div>
-    </div>
   );
 };
 
@@ -776,12 +609,11 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             return (
               <div
                 key={`row-${rowIndex}`}
-                className="absolute flex items-center justify-center group cursor-pointer"
-                onClick={() => !existingLabel && !isEditing && handleAddLabel(rowIndex)}
+                className="absolute flex items-center justify-center group"
                 style={{
-                  left: `${middleColumnIndex * gridSize}px`,
+                  left: `${middleColumnIndex * gridSize}px`, // Position at middle column
                   top: `${(rowIndex + 1) * gridSize + (isMobile ? 40 : 20)}px`,
-                  width: `${gridSize}px`,
+                  width: `${gridSize}px`, // Width of one grid cell
                   height: '30px',
                   zIndex: 15,
                   marginTop: isMobile ? '30px' : '15px'
@@ -800,33 +632,40 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                         placeholder="Enter label"
                         autoFocus
                       />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteLabel(rowIndex);
-                        }}
-                        className="text-red-500 hover:text-red-600 text-xs p-1 ml-2"
-                        title="Delete label"
-                      >
-                        ×
-                      </button>
                     </div>
                   ) : existingLabel ? (
-                    <div
-                      className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditLabel(rowIndex, existingLabel.label);
-                      }}
-                    >
+                    <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg shadow-md px-2 py-1">
                       <span className="text-gray-800 dark:text-gray-200 text-xs sm:text-sm font-medium">
                         {existingLabel.label}
                       </span>
+                      <div className="flex ml-2 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleEditLabel(rowIndex, existingLabel.label)}
+                          className="text-blue-500 hover:text-blue-600 text-xs ml-2 p-1"
+                          title="Edit label"
+                        >
+                          ✎
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLabel(rowIndex)}
+                          className="text-red-500 hover:text-red-600 text-xs ml-1 p-1"
+                          title="Delete label"
+                        >
+                          ×
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <div className="h-px w-full bg-gray-200 dark:bg-gray-700"></div>
-                    </div>
+                    <button
+                      onClick={() => handleAddLabel(rowIndex)}
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-white dark:bg-gray-800 rounded-full w-8 h-8 sm:w-6 sm:h-6 flex items-center justify-center shadow-md hover:bg-gray-100 dark:hover:bg-gray-700"
+                      title="Add label"
+                      style={{
+                        marginTop: isMobile ? '20px' : '10px'
+                      }}
+                    >
+                      <span className="text-blue-500 text-lg">+</span>
+                    </button>
                   )}
                 </div>
               </div>
