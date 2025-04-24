@@ -1,45 +1,52 @@
-main
+'use client';
+
+import type { WarehouseStatus } from '../../types/database';
+
 export const statusColors = {
   green: {
-    color: 'bg-green-500 hover:bg-green-600',
-    percentage: 'Available'
+    color: 'bg-green-500',
+    percentage: '100%',
   },
   red: {
-    color: 'bg-red-500 hover:bg-red-600',
-    percentage: 'Full'
-  }
-} as const;
-
-export type WarehouseStatus = keyof typeof statusColors;
+    color: 'bg-red-500',
+    percentage: '0%',
+  },
+};
 
 export const calculateTotalPercentage = (buttonStatus: Record<string, WarehouseStatus>) => {
   const totalSections = Object.keys(buttonStatus).length;
   if (totalSections === 0) return 0;
 
-  const totalRed = Object.values(buttonStatus).filter(status => status === 'red').length;
-  return (totalRed / totalSections) * 100;
+  const greenSections = Object.values(buttonStatus).filter(status => status === 'green').length;
+  return (greenSections / totalSections) * 100;
 };
 
-export const calculateIndoorPercentage = (buttonStatus: Record<string, WarehouseStatus>, indoorLetters: string[]) => {
-  const indoorSections = Object.entries(buttonStatus).filter(([key]) => 
-    indoorLetters.includes(key[0])
-  );
-  
+export const calculateIndoorPercentage = (
+  buttonStatus: Record<string, WarehouseStatus>,
+  indoorWarehouseLetters: string[]
+) => {
+  const indoorSections = Object.entries(buttonStatus)
+    .filter(([key]) => indoorWarehouseLetters.includes(key[0]))
+    .map(([, status]) => status);
+
   if (indoorSections.length === 0) return 0;
 
-  const indoorRed = indoorSections.filter(([, status]) => status === 'red').length;
-  return (indoorRed / indoorSections.length) * 100;
+  const greenSections = indoorSections.filter(status => status === 'green').length;
+  return (greenSections / indoorSections.length) * 100;
 };
 
-export const calculateOutdoorPercentage = (buttonStatus: Record<string, WarehouseStatus>, outdoorLetters: string[]) => {
-  const outdoorSections = Object.entries(buttonStatus).filter(([key]) => 
-    outdoorLetters.includes(key[0])
-  );
-  
+export const calculateOutdoorPercentage = (
+  buttonStatus: Record<string, WarehouseStatus>,
+  outdoorWarehouseLetters: string[]
+) => {
+  const outdoorSections = Object.entries(buttonStatus)
+    .filter(([key]) => outdoorWarehouseLetters.includes(key[0]))
+    .map(([, status]) => status);
+
   if (outdoorSections.length === 0) return 0;
 
-  const outdoorRed = outdoorSections.filter(([, status]) => status === 'red').length;
-  return (outdoorRed / outdoorSections.length) * 100;
+  const greenSections = outdoorSections.filter(status => status === 'green').length;
+  return (greenSections / outdoorSections.length) * 100;
 };
 
 export const getWarehouseAverageStatus = (warehouseLetter: string, buttonStatus: Record<string, WarehouseStatus>): WarehouseStatus => {
