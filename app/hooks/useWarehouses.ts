@@ -490,9 +490,12 @@ export function useWarehouses() {
     // Calculate percentages for each section
     const calculateSectionPercentage = (status: WarehouseStatus) => {
       switch (status) {
-        case 'green': return 100
-        case 'red': return 0
-        default: return 0
+        case 'green':
+          return 100;
+        case 'red':
+          return 0;
+        default:
+          return 0;
       }
     };
 
