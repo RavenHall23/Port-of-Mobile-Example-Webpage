@@ -10,6 +10,24 @@ import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPe
 import type { WarehouseStatus } from '../types/database';
 import { PieChartComponent } from "../components/ui/pie-chart";
 import { DraggableGrid } from "./components/DraggableGrid";
+import { WarehouseDashboard } from "./components/WarehouseDashboard";
+
+interface WarehouseSection {
+  status: WarehouseStatus;
+  number: string;
+}
+
+interface Warehouse {
+  letter: string;
+  sections: WarehouseSection[];
+}
+
+interface WarehouseWithSections extends Warehouse {
+  sections: Array<{
+    status: WarehouseStatus;
+    number: string;
+  }>;
+}
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -215,6 +233,33 @@ export default function Home() {
       setUndoTimeout(null);
     }
     undoSectionRemoval(section);
+  };
+
+  const calculateDashboardStats = () => {
+    // Get all sections from buttonStatus
+    const allSections = Object.entries(buttonStatus).map(([key, status]) => {
+      const [warehouseLetter, sectionNumber] = key.split('-');
+      return {
+        status,
+        warehouse: warehouseLetter
+      };
+    });
+
+    const totalSections = allSections.length;
+    const occupiedSections = allSections.filter(s => s.status === 'red').length;
+    const availableSections = allSections.filter(s => s.status === 'green').length;
+
+    const statusBreakdown = allSections.reduce((acc, section) => {
+      acc[section.status] = (acc[section.status] || 0) + 1;
+      return acc;
+    }, {} as Record<WarehouseStatus, number>);
+
+    return {
+      totalSections,
+      occupiedSections,
+      availableSections,
+      statusBreakdown
+    };
   };
 
   if (loading) {
@@ -626,6 +671,14 @@ export default function Home() {
             </div>
           </div>
         )}
+
+        {/* Dashboard Section */}
+        <div className="mb-8">
+          <WarehouseDashboard 
+            stats={calculateDashboardStats()}
+            currentWarehouse={selectedWarehouse || undefined}
+          />
+        </div>
       </div>
     </div>
   );
