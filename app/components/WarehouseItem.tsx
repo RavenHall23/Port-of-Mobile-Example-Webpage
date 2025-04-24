@@ -1,5 +1,5 @@
-main
 import type { Warehouse } from '../../types/database'
+import { statusColors } from '../utils/warehouse-utils'
 
 interface WarehouseItemProps {
   warehouse: Warehouse
@@ -78,14 +78,11 @@ export function WarehouseItem({ warehouse, onClick, isSelected, utilization, las
 
   return (
     <div
-main
       className={`flex items-center justify-between px-4 py-2 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 cursor-pointer border-t border-gray-200 dark:border-gray-700 rounded-lg transition-all duration-200 ${
         isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-
       }`}
       onClick={onClick}
     >
-main
       <div className="flex flex-col">
         <span className="font-medium text-gray-900 dark:text-gray-100">{warehouse.name}</span>
         <span className="text-xs text-gray-500 dark:text-gray-400">Last modified: {formatLastModified(lastModified)}</span>

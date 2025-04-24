@@ -2,15 +2,22 @@
 import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
-main
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import Image from 'next/image'
 import { WarehouseItem } from "./components/WarehouseItem";
 import { WarehouseForm } from "./components/WarehouseForm";
-import { useWarehouses } from "./hooks/useWarehouses";
+import { useWarehouses, type UseWarehousesReturn } from "./hooks/useWarehouses";
 import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "./utils/warehouse-utils";
 import type { WarehouseStatus } from '../types/database';
 import { PieChartComponent } from "../components/ui/pie-chart";
 import { DraggableGrid } from "./components/DraggableGrid";
+
+interface Warehouse {
+  letter: string;
+  name: string;
+  last_modified?: string;
+  updated_at?: string;
+}
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -27,6 +34,7 @@ export default function Home() {
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
   const [colorBlindMode, setColorBlindMode] = useState(false);
   
+  const warehouseData = useWarehouses() as unknown as UseWarehousesReturn;
   const {
     indoorWarehouses,
     outdoorWarehouses,
@@ -43,7 +51,7 @@ export default function Home() {
     addSections,
     clearRemovedSections,
     sectionPositions,
-  } = useWarehouses();
+  } = warehouseData;
 
   const { theme, setTheme } = useTheme()
 
@@ -104,7 +112,6 @@ export default function Home() {
     });
   };
 
-main
   const handleButtonClick = async (warehouseLetter: string, sectionNumber: number) => {
     const currentStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
     const newStatus = currentStatus === 'green' ? 'red' : 'green';
@@ -157,18 +164,23 @@ main
       .filter(([key]) => key.startsWith(letter))
       .map(([, status]) => {
         switch (status) {
-main
-          case 'green': return 100 as UtilizationValue
-          case 'red': return 0 as UtilizationValue
-          default: return 0 as UtilizationValue
+          case 'green': return 100 as UtilizationValue;
+          case 'red': return 0 as UtilizationValue;
+          default: return 0 as UtilizationValue;
         }
-      })
+      });
 
-    if (sections.length === 0) return 0
+    if (sections.length === 0) return 0;
     const total = sections.reduce((sum: UtilizationValue, percentage: UtilizationValue) => 
-      (sum + percentage) as UtilizationValue, 0 as UtilizationValue)
-    return Math.round(total / sections.length)
+      (sum + percentage) as UtilizationValue, 0 as UtilizationValue);
+    return Math.round(total / sections.length);
   }
+
+  // Define status colors with proper typing
+  const statusColors: Record<WarehouseStatus, { color: string; percentage: string }> = {
+    green: { color: 'bg-green-500 hover:bg-green-600', percentage: '100%' },
+    red: { color: 'bg-red-500 hover:bg-red-600', percentage: '0%' }
+  };
 
   const handleRemoveSection = async (warehouseLetter: string, sectionNumber: number) => {
     if (confirm(`Are you sure you want to remove Section ${String.fromCharCode(64 + sectionNumber)}?`)) {
@@ -228,7 +240,6 @@ main
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-main
       {/* Theme toggle and color blind mode buttons */}
       <div className="fixed top-4 right-4 flex flex-col gap-2">
         <button
@@ -266,7 +277,8 @@ main
             <Image
               src="/images/apa-logo-full.png"
               alt="Alabama Port Authority Logo"
-              fill
+              width={256}
+              height={64}
               style={{ objectFit: 'contain' }}
               priority
               className="dark:brightness-0 dark:invert"
@@ -422,7 +434,7 @@ main
         </div>
 
         {selectedWarehouse && (
-          <div className="mt-8 w-full">
+          <div className="mt-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
               <h2 className="text-xl sm:text-2xl font-bold">
                 {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
@@ -448,38 +460,34 @@ main
                 Add Sections
               </button>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {Object.entries(buttonStatus)
-                .filter(([key]) => key.startsWith(selectedWarehouse))
-                .map(([key, status]) => {
-                  const sectionNumber = parseInt(key.slice(1));
-                  return (
-                    <div key={sectionNumber} className="relative group">
-                      <button
-                        onClick={() => handleButtonClick(selectedWarehouse, sectionNumber)}
-                        className={`w-full px-6 sm:px-8 py-4 sm:py-6 text-white rounded-lg transition-colors text-xl sm:text-2xl font-semibold ${
-                          status && statusColors[status]
-                            ? statusColors[status].color
-                            : "bg-blue-500 hover:bg-blue-600"
-                        }`}
-                      >
-                        Section {String.fromCharCode(64 + sectionNumber)}
-                        {status && statusColors[status] && (
-                          <span className="ml-2">
-                            ({statusColors[status].percentage})
-                          </span>
-                        )}
-                      </button>
-                      <button
-                        onClick={() => handleRemoveSection(selectedWarehouse, sectionNumber)}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600"
-                        title="Remove section"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  );
-                })}
+            <div className="flex justify-center">
+              <DraggableGrid
+                sections={Object.entries(buttonStatus).filter(([key]) => key.startsWith(selectedWarehouse)).map(([key, status]) => ({
+                  key,
+                  status,
+                  sectionNumber: String.fromCharCode(64 + parseInt(key.slice(1))),
+                  position: sectionPositions[key]
+                }))}
+                onSectionMove={(sectionId, position) => {
+                  console.log('Section moved:', sectionId, position);
+                }}
+                onStatusChange={async (sectionId, status) => {
+                  const warehouseLetter = sectionId.charAt(0);
+                  const sectionNumber = parseInt(sectionId.slice(1));
+                  await updateSectionStatus(warehouseLetter, sectionNumber, status);
+                }}
+                onSectionDelete={(sectionId) => {
+                  const warehouseLetter = sectionId.charAt(0);
+                  const sectionNumber = parseInt(sectionId.slice(1));
+                  removeSection(warehouseLetter, sectionNumber);
+                }}
+                onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
+                  return await updateSectionPosition(warehouseLetter, sectionNumber, position);
+                }}
+                currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
+                onAddSections={() => setShowAddSectionsModal(true)}
+                colorBlindMode={colorBlindMode}
+              />
             </div>
           </div>
         )}
@@ -602,41 +610,6 @@ main
                   Remove Warehouses
                 </button>
               </div>
-            </div>
-          </div>
-        )}
-
-main
-        {selectedWarehouse && (
-          <div className="mt-8">
-            <div className="flex justify-center">
-              <DraggableGrid
-                sections={Object.entries(buttonStatus).map(([key, status]) => ({
-                  key,
-                  status,
-                  sectionNumber: key.slice(1),
-                  position: sectionPositions[key],
-                }))}
-                onSectionMove={(sectionId, position) => {
-                  console.log('Section moved:', sectionId, position);
-                }}
-                onStatusChange={async (sectionId, status) => {
-                  const warehouseLetter = sectionId.charAt(0);
-                  const sectionNumber = parseInt(sectionId.slice(1));
-                  await updateSectionStatus(warehouseLetter, sectionNumber, status);
-                }}
-                onSectionDelete={(sectionId) => {
-                  const warehouseLetter = sectionId.charAt(0);
-                  const sectionNumber = parseInt(sectionId.slice(1));
-                  removeSection(warehouseLetter, sectionNumber);
-                }}
-                onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
-                  return await updateSectionPosition(warehouseLetter, sectionNumber, position);
-                }}
-                currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
-                onAddSections={() => setShowAddSectionsModal(true)}
-                colorBlindMode={colorBlindMode}
-              />
             </div>
           </div>
         )}
