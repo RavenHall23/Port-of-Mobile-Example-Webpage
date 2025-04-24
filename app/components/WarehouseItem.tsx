@@ -49,6 +49,7 @@ export function WarehouseItem({
         "flex items-center justify-between p-4 hover:bg-gray-50/80 dark:hover:bg-gray-800/40 cursor-pointer border-b border-gray-200 dark:border-gray-700 rounded-lg transition-all duration-200",
         isSelected && "bg-blue-50/50 dark:bg-blue-900/20"
       )}
+        
       onClick={onClick}
     >
       <div className="flex flex-col">

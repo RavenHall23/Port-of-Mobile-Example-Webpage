@@ -7,7 +7,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { WarehouseItem } from "./components/WarehouseItem";
 import { WarehouseForm } from "./components/WarehouseForm";
-import { useWarehouses } from "./hooks/useWarehouses";
+import { useWarehouses, type UseWarehousesReturn } from "./hooks/useWarehouses";
 import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "./utils/warehouse-utils";
 import type { WarehouseStatus } from '../types/database';
 import { DraggableGrid } from "./components/DraggableGrid";
@@ -30,6 +30,13 @@ interface WarehouseWithSections extends Warehouse {
   }>;
 }
 
+interface Warehouse {
+  letter: string;
+  name: string;
+  last_modified?: string;
+  updated_at?: string;
+}
+
 export default function Home() {
   const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(null);
   const [showAddSectionsModal, setShowAddSectionsModal] = useState(false);
@@ -37,6 +44,7 @@ export default function Home() {
   const [addingSections, setAddingSections] = useState(false);
   const [colorBlindMode, setColorBlindMode] = useState(false);
   
+  const warehouseData = useWarehouses() as unknown as UseWarehousesReturn;
   const {
     indoorWarehouses,
     outdoorWarehouses,
@@ -46,7 +54,7 @@ export default function Home() {
     updateSectionPosition,
     removeSection,
     sectionPositions,
-  } = useWarehouses();
+  } = warehouseData;
 
   const { theme, setTheme } = useTheme()
 
@@ -103,13 +111,69 @@ export default function Home() {
           default:
             return 0 as UtilizationValue;
         }
-      })
+      });
 
-    if (sections.length === 0) return 0
+    if (sections.length === 0) return 0;
     const total = sections.reduce((sum: UtilizationValue, percentage: UtilizationValue) => 
-      (sum + percentage) as UtilizationValue, 0 as UtilizationValue)
-    return Math.round(total / sections.length)
+      (sum + percentage) as UtilizationValue, 0 as UtilizationValue);
+    return Math.round(total / sections.length);
   }
+  
+  // Define status colors with proper typing
+  const statusColors: Record<WarehouseStatus, { color: string; percentage: string }> = {
+    green: { color: 'bg-green-500 hover:bg-green-600', percentage: '100%' },
+    red: { color: 'bg-red-500 hover:bg-red-600', percentage: '0%' }
+  };
+
+  const handleRemoveSection = async (warehouseLetter: string, sectionNumber: number) => {
+    if (confirm(`Are you sure you want to remove Section ${String.fromCharCode(64 + sectionNumber)}?`)) {
+      // Clear any existing timeout
+      if (undoTimeout) {
+        clearTimeout(undoTimeout);
+      }
+
+      const success = await removeSection(warehouseLetter, sectionNumber);
+      if (success) {
+        // Set new timeout for 3 seconds
+        const timeout = setTimeout(() => {
+          clearRemovedSections();
+        }, 3000);
+        setUndoTimeout(timeout);
+
+        // If all sections are removed, clear the selection
+        const remainingSections = Object.keys(buttonStatus).filter(key => key.startsWith(warehouseLetter));
+        if (remainingSections.length === 0) {
+          setSelectedWarehouse(null);
+        }
+      }
+    }
+  };
+
+  const handleAddSections = async () => {
+    if (!selectedWarehouse || newSectionsCount < 1) return;
+    
+    setAddingSections(true);
+    try {
+      const success = await addSections(selectedWarehouse, newSectionsCount);
+      if (success) {
+        setShowAddSectionsModal(false);
+        setNewSectionsCount(1);
+      }
+    } catch (error) {
+      console.error('Error adding sections:', error);
+      alert(error instanceof Error ? error.message : 'Failed to add sections. Please try again.');
+    } finally {
+      setAddingSections(false);
+    }
+  };
+
+  const handleUndoClick = (section: (typeof removedSections)[0]) => {
+    if (undoTimeout) {
+      clearTimeout(undoTimeout);
+      setUndoTimeout(null);
+    }
+    undoSectionRemoval(section);
+  };
 
   if (loading) {
     return <div className="min-h-screen p-4 flex items-center justify-center">
@@ -156,7 +220,8 @@ export default function Home() {
             <Image
               src="/images/apa-logo-full.png"
               alt="Alabama Port Authority Logo"
-              fill
+              width={256}
+              height={64}
               style={{ objectFit: 'contain' }}
               priority
               className="dark:brightness-0 dark:invert"
@@ -253,6 +318,7 @@ export default function Home() {
           <div className="w-full max-w-4xl">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold">
+
                 {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
               </h2>
               <button
@@ -276,6 +342,7 @@ export default function Home() {
                 Add Sections
               </button>
             </div>
+
             <DraggableGrid
               sections={Object.entries(buttonStatus)
                 .filter(([key]) => key.startsWith(selectedWarehouse))
@@ -305,6 +372,107 @@ export default function Home() {
               onAddSections={() => setShowAddSectionsModal(true)}
               colorBlindMode={colorBlindMode}
             />
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm.type && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4">Select Warehouses to Remove</h3>
+              <div className="mb-6 max-h-96 overflow-y-auto">
+                <div className="space-y-2">
+                  {showDeleteConfirm.type === 'indoor' 
+                    ? indoorWarehouses.map((warehouse) => (
+                        <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={warehousesToDelete.has(warehouse.letter)}
+                            onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                            className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                          />
+                          <span>{warehouse.name}</span>
+                        </label>
+                      ))
+                    : outdoorWarehouses.map((warehouse) => (
+                        <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={warehousesToDelete.has(warehouse.letter)}
+                            onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                            className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                          />
+                          <span>{warehouse.name}</span>
+                        </label>
+                      ))
+                  }
+                </div>
+              </div>
+              <div className="flex justify-between items-center mb-4">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {warehousesToDelete.size} warehouse{warehousesToDelete.size !== 1 ? 's' : ''} selected
+                </span>
+              </div>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => {
+                    setShowDeleteConfirm({ type: null });
+                    setWarehousesToDelete(new Set());
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRemoveSelectedWarehouses}
+                  disabled={warehousesToDelete.size === 0}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Final Confirmation Modal */}
+        {showFinalConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
+              <h3 className="text-xl font-bold mb-4">Confirm Warehouse Removal</h3>
+              <div className="mb-6">
+                <p className="text-gray-700 dark:text-gray-300 mb-4">
+                  Are you sure you want to remove the following warehouse{warehousesToDelete.size !== 1 ? 's' : ''}?
+                </p>
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {Array.from(warehousesToDelete).map((letter) => {
+                    const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
+                    return (
+                      <div key={letter} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                        {warehouse?.name}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => {
+                    setShowFinalConfirm(false);
+                    setWarehousesToDelete(new Set());
+                  }}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleFinalConfirm}
+                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Remove Warehouses
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

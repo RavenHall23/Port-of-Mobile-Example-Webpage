@@ -2,7 +2,7 @@ import * as React from "react"
 import { Button } from "../../components/ui/button"
 import {
   Card,
-  CardContent,
+  CardContent, // this is the right one that jordyn didnt mean to push
   CardDescription,
   CardFooter,
   CardHeader,
