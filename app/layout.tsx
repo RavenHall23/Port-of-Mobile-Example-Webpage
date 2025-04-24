@@ -5,6 +5,7 @@ import "./globals.css";
 import "./styles/patterns.css";
 import { Providers } from './providers'
 import Link from "next/link";
+import { ThemeProvider } from "next-themes";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,26 +37,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Providers>
-          <nav className="bg-white shadow-sm">
-            <div className="container mx-auto px-4 py-3">
-              <div className="flex items-center justify-between">
-                <Link href="/" className="text-xl font-bold text-gray-800">
-                  Warehouse System
-                </Link>
-                <div className="flex space-x-4">
-                  <Link
-                    href="/dashboard"
-                    className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
-                  >
-                    Dashboard
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </nav>
-          <main>{children}</main>
-        </Providers>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+          <Providers>
+            <main>{children}</main>
+          </Providers>
+        </ThemeProvider>
       </body>
     </html>
   );

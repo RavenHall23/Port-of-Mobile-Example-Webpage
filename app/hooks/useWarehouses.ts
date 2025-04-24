@@ -11,7 +11,26 @@ interface RemovedSection {
   timestamp: number;
 }
 
-export function useWarehouses() {
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface SectionOptions {
+  name?: string;
+  status?: WarehouseStatus;
+  position?: Position | null;
+}
+
+export interface UseWarehousesProps {
+  onSectionAdd?: (letter: string, number: number, options: SectionOptions) => {
+    status: WarehouseStatus;
+    name: string;
+    position: Position | null;
+  };
+}
+
+export function useWarehouses(props?: UseWarehousesProps) {
   const [indoorWarehouses, setIndoorWarehouses] = useState<Warehouse[]>([])
   const [outdoorWarehouses, setOutdoorWarehouses] = useState<Warehouse[]>([])
   const [buttonStatus, setButtonStatus] = useState<Record<string, WarehouseStatus>>({})
@@ -606,7 +625,7 @@ export function useWarehouses() {
     doc.save(`warehouse-status-${date.toISOString().replace(/[:.]/g, '-')}.pdf`)
   }
 
-  const addSections = async (warehouseLetter: string, numberOfSections: number) => {
+  const addSections = async (warehouseLetter: string, numberOfSections: number, options?: SectionOptions): Promise<boolean> => {
     if (!supabase) {
       console.error('Supabase client not initialized');
       throw new Error('Database connection not initialized');
@@ -615,6 +634,7 @@ export function useWarehouses() {
     try {
       console.log('Starting to add sections:', { warehouseLetter, numberOfSections });
       
+      // Initialize the new sections with provided options or defaults
       // Get the current warehouse
       const { data: warehouse, error: warehouseError } = await supabase
         .from('warehouses')

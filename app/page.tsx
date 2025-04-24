@@ -1,10 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
-import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
+import { SunIcon, MoonIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import Image from 'next/image'
 import Link from 'next/link'
+import { DndProvider } from 'react-dnd'
+import { HTML5Backend } from 'react-dnd-html5-backend'
 import { WarehouseItem } from "./components/WarehouseItem";
 import { WarehouseForm } from "./components/WarehouseForm";
 import { useWarehouses, type UseWarehousesReturn } from "./hooks/useWarehouses";
@@ -43,6 +45,13 @@ export default function Home() {
   const [newSectionsCount, setNewSectionsCount] = useState(1);
   const [addingSections, setAddingSections] = useState(false);
   const [colorBlindMode, setColorBlindMode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
+  const [showFinalConfirm, setShowFinalConfirm] = useState(false);
+  const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
+  const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [removedSections, setRemovedSections] = useState<Array<{ letter: string; number: number }>>([]);
+  const [showIndoorDropdown, setShowIndoorDropdown] = useState(false);
+  const [showOutdoorDropdown, setShowOutdoorDropdown] = useState(false);
   
   const warehouseData = useWarehouses() as unknown as UseWarehousesReturn;
   const {
@@ -57,6 +66,20 @@ export default function Home() {
   } = warehouseData;
 
   const { theme, setTheme } = useTheme()
+
+  // Add click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.dropdown-container')) {
+        setShowIndoorDropdown(false);
+        setShowOutdoorDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleWarehouseClick = (warehouse: string) => {
     setSelectedWarehouse(warehouse);
@@ -149,30 +172,47 @@ export default function Home() {
     }
   };
 
-  const handleAddSections = async () => {
-    if (!selectedWarehouse || newSectionsCount < 1) return;
-    
-    setAddingSections(true);
-    try {
-      const success = await addSections(selectedWarehouse, newSectionsCount);
-      if (success) {
-        setShowAddSectionsModal(false);
-        setNewSectionsCount(1);
-      }
-    } catch (error) {
-      console.error('Error adding sections:', error);
-      alert(error instanceof Error ? error.message : 'Failed to add sections. Please try again.');
-    } finally {
-      setAddingSections(false);
-    }
-  };
-
   const handleUndoClick = (section: (typeof removedSections)[0]) => {
     if (undoTimeout) {
       clearTimeout(undoTimeout);
       setUndoTimeout(null);
     }
     undoSectionRemoval(section);
+  };
+
+  const clearRemovedSections = () => {
+    setRemovedSections([]);
+    setUndoTimeout(null);
+  };
+
+  const undoSectionRemoval = (section: { letter: string; number: number }) => {
+    setRemovedSections(prev => prev.filter(s => s.letter !== section.letter || s.number !== section.number));
+  };
+
+  const toggleWarehouseSelection = (letter: string) => {
+    setWarehousesToDelete(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(letter)) {
+        newSet.delete(letter);
+      } else {
+        newSet.add(letter);
+      }
+      return newSet;
+    });
+  };
+
+  const handleRemoveSelectedWarehouses = () => {
+    if (warehousesToDelete.size > 0) {
+      setShowFinalConfirm(true);
+    }
+  };
+
+  const handleFinalConfirm = async () => {
+    // Here you would implement the actual warehouse removal logic
+    // For now, we'll just close the modal and clear the selection
+    setShowFinalConfirm(false);
+    setWarehousesToDelete(new Set());
+    setShowDeleteConfirm({ type: null });
   };
 
   if (loading) {
@@ -182,344 +222,403 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900">
-      {/* Theme toggle and color blind mode buttons */}
-      <div className="fixed top-4 right-4 flex flex-col gap-2">
-        <button
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors shadow-md"
-          aria-label="Toggle theme"
-        >
-          {theme === 'dark' ? (
-            <SunIcon className="h-6 w-6 text-yellow-500" />
-          ) : (
-            <MoonIcon className="h-6 w-6 text-gray-700" />
-          )}
-        </button>
-        
-        <button
-          onClick={() => setColorBlindMode(!colorBlindMode)}
-          className={`p-2 rounded-lg transition-colors shadow-md ${
-            colorBlindMode 
-              ? 'bg-purple-500 hover:bg-purple-600 text-white' 
-              : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
-          }`}
-          aria-label="Toggle color blind mode"
-        >
-          {colorBlindMode ? (
-            <EyeSlashIcon className="h-6 w-6" />
-          ) : (
-            <EyeIcon className="h-6 w-6" />
-          )}
-        </button>
-      </div>
-
-      <div className="min-h-screen p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center">
-        <div className="flex flex-col items-center mb-6 sm:mb-12">
-          <div className="relative w-48 sm:w-64 h-12 sm:h-16 mb-6">
-            <Image
-              src="/images/apa-logo-full.png"
-              alt="Alabama Port Authority Logo"
-              width={256}
-              height={64}
-              style={{ objectFit: 'contain' }}
-              priority
-              className="dark:brightness-0 dark:invert"
-            />
-          </div>
-          <h1 className="text-2xl sm:text-[32pt] font-[family-name:var(--font-geist-mono)] bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent tracking-tight text-center">
-            Warehouse Management
-          </h1>
+    <DndProvider backend={HTML5Backend}>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        {/* Theme toggle and color blind mode buttons */}
+        <div className="fixed top-6 right-6 flex flex-col gap-3 z-50">
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="p-3 rounded-xl bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 transition-all duration-300 shadow-lg backdrop-blur-sm"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? (
+              <SunIcon className="h-6 w-6 text-amber-500" />
+            ) : (
+              <MoonIcon className="h-6 w-6 text-gray-700" />
+            )}
+          </button>
+          
+          <button
+            onClick={() => setColorBlindMode(!colorBlindMode)}
+            className={`p-3 rounded-xl transition-all duration-300 shadow-lg backdrop-blur-sm ${
+              colorBlindMode 
+                ? 'bg-purple-500 hover:bg-purple-600 text-white' 
+                : 'bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200'
+            }`}
+            aria-label="Toggle color blind mode"
+          >
+            {colorBlindMode ? (
+              <EyeSlashIcon className="h-6 w-6" />
+            ) : (
+              <EyeIcon className="h-6 w-6" />
+            )}
+          </button>
         </div>
 
-        {/* Dashboard Link Button */}
-        <Link 
-          href="/dashboard"
-          className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white rounded-lg hover:from-blue-700 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 mb-8"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
-            <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
-          </svg>
-          View Dashboard
-        </Link>
+        <div className="container mx-auto px-4 py-8 min-h-screen flex flex-col items-center">
+          {/* Header Section */}
+          <div className="w-full max-w-6xl flex flex-col items-center mb-12">
+            <div className="relative w-48 sm:w-64 h-12 sm:h-16 mb-6">
+              <Image
+                src="/images/apa-logo-full.png"
+                alt="Alabama Port Authority Logo"
+                width={256}
+                height={64}
+                style={{ objectFit: 'contain' }}
+                priority
+                className="dark:brightness-0 dark:invert transition-all duration-300"
+              />
+            </div>
+            <h1 className="text-3xl sm:text-[40pt] font-[family-name:var(--font-geist-mono)] bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-400 dark:to-cyan-300 bg-clip-text text-transparent tracking-tight text-center font-bold mb-8">
+              Warehouse Management
+            </h1>
 
-        {/* Utilization Stats and Pie Chart */}
-        <div className="w-full max-w-4xl mb-8">
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
-            <h3 className="text-lg font-semibold mb-4">Warehouse Utilization</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'Available', value: totalPercentage },
-                      { name: 'Occupied', value: 100 - totalPercentage }
-                    ]}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  >
-                    <Cell fill="#22c55e" />
-                    <Cell fill="#ef4444" />
-                  </Pie>
-                  <Tooltip formatter={tooltipFormatter} />
-                </PieChart>
-              </ResponsiveContainer>
+            {/* Dashboard Link Button */}
+            <Link 
+              href="/dashboard"
+              className="w-32 h-12 bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-500 dark:to-cyan-400 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 group"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transition-transform group-hover:scale-110" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M2 10a8 8 0 018-8v8h8a8 8 0 11-16 0z" />
+                <path d="M12 2.252A8.014 8.014 0 0117.748 8H12V2.252z" />
+              </svg>
+              <span>Dashboard</span>
+            </Link>
+          </div>
+
+          {/* Utilization Stats and Pie Chart */}
+          <div className="w-full max-w-6xl mb-12">
+            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+              <h3 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100">Warehouse Utilization</h3>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Available', value: totalPercentage },
+                        { name: 'Occupied', value: 100 - totalPercentage }
+                      ]}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={100}
+                      innerRadius={60}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    >
+                      <Cell fill={theme === 'dark' ? "#22c55e" : "#15803d"} />
+                      <Cell fill={theme === 'dark' ? "#ef4444" : "#dc2626"} />
+                    </Pie>
+                    <Tooltip formatter={tooltipFormatter} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Warehouse Selection */}
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 w-full sm:w-auto mb-8">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">Indoor Warehouses</h2>
-            <div className="flex flex-wrap gap-2">
-              {indoorWarehouses.map((warehouse) => (
+          {/* Warehouse Selection */}
+          <div className="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
+            {/* Indoor Warehouses Dropdown */}
+            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+              <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100 text-center">Indoor Warehouses</h2>
+              <div className="relative dropdown-container">
                 <button
-                  key={warehouse.letter}
-                  onClick={() => handleWarehouseClick(warehouse.letter)}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedWarehouse === warehouse.letter
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
+                  onClick={() => {
+                    setShowIndoorDropdown(!showIndoorDropdown);
+                    setShowOutdoorDropdown(false);
+                  }}
+                  className="w-full h-16 px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300 bg-gray-50/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md hover:shadow-lg flex items-center justify-between"
                 >
-                  {warehouse.name}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">Outdoor Warehouses</h2>
-            <div className="flex flex-wrap gap-2">
-              {outdoorWarehouses.map((warehouse) => (
-                <button
-                  key={warehouse.letter}
-                  onClick={() => handleWarehouseClick(warehouse.letter)}
-                  className={`px-4 py-2 rounded-lg transition-colors ${
-                    selectedWarehouse === warehouse.letter
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  {warehouse.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {selectedWarehouse && (
-          <div className="w-full max-w-4xl">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold">
-
-                {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
-              </h2>
-              <button
-                onClick={() => setShowAddSectionsModal(true)}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                  <span className="text-gray-800 dark:text-gray-100">
+                    {selectedWarehouse && indoorWarehouses.find(w => w.letter === selectedWarehouse)
+                      ? indoorWarehouses.find(w => w.letter === selectedWarehouse)?.name
+                      : 'Select Warehouse'}
+                  </span>
+                  <ChevronDownIcon 
+                    className={`h-5 w-5 text-gray-600 dark:text-gray-300 transition-transform duration-300 ${
+                      showIndoorDropdown ? 'rotate-180' : ''
+                    }`}
                   />
-                </svg>
-                Add Sections
-              </button>
+                </button>
+                
+                {showIndoorDropdown && (
+                  <div className="absolute z-50 w-full mt-2 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                    {indoorWarehouses.map((warehouse) => (
+                      <button
+                        key={warehouse.letter}
+                        onClick={() => {
+                          handleWarehouseClick(warehouse.letter);
+                          setShowIndoorDropdown(false);
+                        }}
+                        className={`w-full px-6 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                          selectedWarehouse === warehouse.letter
+                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                            : 'text-gray-700 dark:text-gray-200'
+                        }`}
+                      >
+                        {warehouse.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-
-            <DraggableGrid
-              sections={Object.entries(buttonStatus)
-                .filter(([key]) => key.startsWith(selectedWarehouse))
-                .map(([key, status]) => ({
-                  key,
-                  status,
-                  sectionNumber: key.slice(1),
-                  position: sectionPositions[key],
-                }))}
-              onSectionMove={(sectionId, position) => {
-                console.log('Section moved:', sectionId, position);
-              }}
-              onStatusChange={async (sectionId, status) => {
-                const warehouseLetter = sectionId.charAt(0);
-                const sectionNumber = parseInt(sectionId.slice(1));
-                await updateSectionStatus(warehouseLetter, sectionNumber, status);
-              }}
-              onSectionDelete={(sectionId) => {
-                const warehouseLetter = sectionId.charAt(0);
-                const sectionNumber = parseInt(sectionId.slice(1));
-                removeSection(warehouseLetter, sectionNumber);
-              }}
-              onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
-                return await updateSectionPosition(warehouseLetter, sectionNumber, position);
-              }}
-              currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
-              onAddSections={() => setShowAddSectionsModal(true)}
-              colorBlindMode={colorBlindMode}
-            />
-          </div>
-        )}
-
-        {/* Delete Confirmation Modal */}
-        {showDeleteConfirm.type && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Select Warehouses to Remove</h3>
-              <div className="mb-6 max-h-96 overflow-y-auto">
-                <div className="space-y-2">
-                  {showDeleteConfirm.type === 'indoor' 
-                    ? indoorWarehouses.map((warehouse) => (
-                        <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={warehousesToDelete.has(warehouse.letter)}
-                            onChange={() => toggleWarehouseSelection(warehouse.letter)}
-                            className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
-                          />
-                          <span>{warehouse.name}</span>
-                        </label>
-                      ))
-                    : outdoorWarehouses.map((warehouse) => (
-                        <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={warehousesToDelete.has(warehouse.letter)}
-                            onChange={() => toggleWarehouseSelection(warehouse.letter)}
-                            className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
-                          />
-                          <span>{warehouse.name}</span>
-                        </label>
-                      ))
-                  }
-                </div>
-              </div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {warehousesToDelete.size} warehouse{warehousesToDelete.size !== 1 ? 's' : ''} selected
-                </span>
-              </div>
-              <div className="flex justify-end gap-4">
+            
+            {/* Outdoor Warehouses Dropdown */}
+            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+              <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100 text-center">Outdoor Warehouses</h2>
+              <div className="relative dropdown-container">
                 <button
                   onClick={() => {
-                    setShowDeleteConfirm({ type: null });
-                    setWarehousesToDelete(new Set());
+                    setShowOutdoorDropdown(!showOutdoorDropdown);
+                    setShowIndoorDropdown(false);
                   }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                  className="w-full h-16 px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300 bg-gray-50/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md hover:shadow-lg flex items-center justify-between"
                 >
-                  Cancel
+                  <span className="text-gray-800 dark:text-gray-100">
+                    {selectedWarehouse && outdoorWarehouses.find(w => w.letter === selectedWarehouse)
+                      ? outdoorWarehouses.find(w => w.letter === selectedWarehouse)?.name
+                      : 'Select Warehouse'}
+                  </span>
+                  <ChevronDownIcon 
+                    className={`h-5 w-5 text-gray-600 dark:text-gray-300 transition-transform duration-300 ${
+                      showOutdoorDropdown ? 'rotate-180' : ''
+                    }`}
+                  />
                 </button>
-                <button
-                  onClick={handleRemoveSelectedWarehouses}
-                  disabled={warehousesToDelete.size === 0}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Continue
-                </button>
+                
+                {showOutdoorDropdown && (
+                  <div className="absolute z-50 w-full mt-2 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                    {outdoorWarehouses.map((warehouse) => (
+                      <button
+                        key={warehouse.letter}
+                        onClick={() => {
+                          handleWarehouseClick(warehouse.letter);
+                          setShowOutdoorDropdown(false);
+                        }}
+                        className={`w-full px-6 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${
+                          selectedWarehouse === warehouse.letter
+                            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                            : 'text-gray-700 dark:text-gray-200'
+                        }`}
+                      >
+                        {warehouse.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
-        )}
 
-        {/* Final Confirmation Modal */}
-        {showFinalConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-              <h3 className="text-xl font-bold mb-4">Confirm Warehouse Removal</h3>
-              <div className="mb-6">
-                <p className="text-gray-700 dark:text-gray-300 mb-4">
-                  Are you sure you want to remove the following warehouse{warehousesToDelete.size !== 1 ? 's' : ''}?
-                </p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {Array.from(warehousesToDelete).map((letter) => {
-                    const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
-                    return (
-                      <div key={letter} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                        {warehouse?.name}
-                      </div>
-                    );
-                  })}
+          {/* Selected Warehouse Section */}
+          {selectedWarehouse && (
+            <div className="w-full max-w-6xl">
+              <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                    {[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name || `Warehouse ${selectedWarehouse}`}
+                  </h2>
+                  <button
+                    onClick={() => setShowAddSectionsModal(true)}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-500 dark:to-cyan-400 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                  >
+                    <svg 
+                      xmlns="http://www.w3.org/2000/svg" 
+                      className="h-5 w-5" 
+                      fill="none" 
+                      viewBox="0 0 24 24" 
+                      stroke="currentColor"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                      />
+                    </svg>
+                    Add Sections
+                  </button>
                 </div>
-              </div>
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => {
-                    setShowFinalConfirm(false);
-                    setWarehousesToDelete(new Set());
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleFinalConfirm}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Remove Warehouses
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
-        {/* Add Sections Modal */}
-        {showAddSectionsModal && selectedWarehouse && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
-              <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
-                Add Sections to {
-                  [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name
-                }
-              </h3>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Number of Sections to Add
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={newSectionsCount}
-                  onChange={(e) => setNewSectionsCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                <DraggableGrid
+                  sections={Object.entries(buttonStatus)
+                    .filter(([key]) => key.startsWith(selectedWarehouse))
+                    .map(([key, status]) => ({
+                      key,
+                      status,
+                      sectionNumber: key.slice(1),
+                      position: sectionPositions[key],
+                    }))}
+                  onSectionMove={(sectionId, position) => {
+                    console.log('Section moved:', sectionId, position);
+                  }}
+                  onStatusChange={async (sectionId, status) => {
+                    const warehouseLetter = sectionId.charAt(0);
+                    const sectionNumber = parseInt(sectionId.slice(1));
+                    await updateSectionStatus(warehouseLetter, sectionNumber, status);
+                  }}
+                  onSectionDelete={(sectionId) => {
+                    const warehouseLetter = sectionId.charAt(0);
+                    const sectionNumber = parseInt(sectionId.slice(1));
+                    removeSection(warehouseLetter, sectionNumber);
+                  }}
+                  onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
+                    return await updateSectionPosition(warehouseLetter, sectionNumber, position);
+                  }}
+                  currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
+                  onAddSections={() => setShowAddSectionsModal(true)}
+                  colorBlindMode={colorBlindMode}
                 />
               </div>
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => {
-                    setShowAddSectionsModal(false);
-                    setNewSectionsCount(1);
-                  }}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddSections}
-                  disabled={addingSections || newSectionsCount < 1}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {addingSections ? 'Adding...' : 'Add Sections'}
-                </button>
+            </div>
+          )}
+
+          {/* Modals */}
+          {showDeleteConfirm.type && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="w-full max-w-lg mx-4 bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+                <h3 className="text-xl font-bold mb-6">Select Warehouses to Remove</h3>
+                <div className="mb-6 max-h-96 overflow-y-auto">
+                  <div className="space-y-2">
+                    {showDeleteConfirm.type === 'indoor' 
+                      ? indoorWarehouses.map((warehouse) => (
+                          <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={warehousesToDelete.has(warehouse.letter)}
+                              onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                              className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                            />
+                            <span>{warehouse.name}</span>
+                          </label>
+                        ))
+                      : outdoorWarehouses.map((warehouse) => (
+                          <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={warehousesToDelete.has(warehouse.letter)}
+                              onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                              className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                            />
+                            <span>{warehouse.name}</span>
+                          </label>
+                        ))
+                    }
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {warehousesToDelete.size} warehouse{warehousesToDelete.size !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm({ type: null });
+                      setWarehousesToDelete(new Set());
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRemoveSelectedWarehouses}
+                    disabled={warehousesToDelete.size === 0}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Continue
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {showFinalConfirm && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="w-full max-w-lg mx-4 bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+                <h3 className="text-xl font-bold mb-6">Confirm Warehouse Removal</h3>
+                <div className="mb-6">
+                  <p className="text-gray-700 dark:text-gray-300 mb-4">
+                    Are you sure you want to remove the following warehouse{warehousesToDelete.size !== 1 ? 's' : ''}?
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {Array.from(warehousesToDelete).map((letter) => {
+                      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
+                      return (
+                        <div key={letter} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          {warehouse?.name}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => {
+                      setShowFinalConfirm(false);
+                      setWarehousesToDelete(new Set());
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFinalConfirm}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    Remove Warehouses
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showAddSectionsModal && selectedWarehouse && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="w-full max-w-lg mx-4 bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+                <h3 className="text-xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
+                  Add Sections to {
+                    [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name
+                  }
+                </h3>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Number of Sections to Add
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={newSectionsCount}
+                    onChange={(e) => setNewSectionsCount(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                    className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"
+                  />
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => {
+                      setShowAddSectionsModal(false);
+                      setNewSectionsCount(1);
+                    }}
+                    className="px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAddSections}
+                    disabled={addingSections || newSectionsCount < 1}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {addingSections ? 'Adding...' : 'Add Sections'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </DndProvider>
   );
 }
