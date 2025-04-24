@@ -8,6 +8,7 @@ export interface Warehouse {
   letter: string
   created_at: string
   updated_at: string
+  last_modified: string
 }
 
 export interface WarehouseSection {

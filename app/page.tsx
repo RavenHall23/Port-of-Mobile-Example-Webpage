@@ -2,13 +2,15 @@
 import { useState, useEffect } from "react";
 import { useTheme } from 'next-themes'
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
-import { WarehouseItem } from "@/components/WarehouseItem";
-import { WarehouseForm } from "@/components/WarehouseForm";
-import { useWarehouses } from "@/app/hooks/useWarehouses";
-import type { WarehouseStatus } from '@/types/database';
-import { PieChartComponent } from "@/components/ui/pie-chart";
+main
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
+import { WarehouseItem } from "./components/WarehouseItem";
+import { WarehouseForm } from "./components/WarehouseForm";
+import { useWarehouses } from "./hooks/useWarehouses";
 import { calculateTotalPercentage, calculateIndoorPercentage, calculateOutdoorPercentage, statusColors } from "./utils/warehouse-utils";
-import Image from 'next/image'
+import type { WarehouseStatus } from '../types/database';
+import { PieChartComponent } from "../components/ui/pie-chart";
+import { DraggableGrid } from "./components/DraggableGrid";
 
 export default function Home() {
   const [indoorOpen, setIndoorOpen] = useState(false);
@@ -23,6 +25,7 @@ export default function Home() {
   const [newSectionsCount, setNewSectionsCount] = useState(1);
   const [addingSections, setAddingSections] = useState(false);
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [colorBlindMode, setColorBlindMode] = useState(false);
   
   const {
     indoorWarehouses,
@@ -31,13 +34,15 @@ export default function Home() {
     loading,
     createWarehouse,
     updateSectionStatus,
+    updateSectionPosition,
     removeWarehouse,
     removeSection,
     downloadWarehouseData,
     removedSections,
     undoSectionRemoval,
     addSections,
-    clearRemovedSections
+    clearRemovedSections,
+    sectionPositions,
   } = useWarehouses();
 
   const { theme, setTheme } = useTheme()
@@ -99,12 +104,14 @@ export default function Home() {
     });
   };
 
-  const handleButtonClick = async (warehouse: string, sectionNumber: number) => {
-    const buttonKey = `${warehouse}${sectionNumber}`;
-    const currentStatus = buttonStatus[buttonKey];
-    const nextStatus = currentStatus === 'green' ? 'red' : 'green';
-
-    await updateSectionStatus(warehouse, sectionNumber, nextStatus);
+main
+  const handleButtonClick = async (warehouseLetter: string, sectionNumber: number) => {
+    const currentStatus = buttonStatus[`${warehouseLetter}${sectionNumber}`];
+    const newStatus = currentStatus === 'green' ? 'red' : 'green';
+    const success = await updateSectionStatus(warehouseLetter, sectionNumber, newStatus);
+    if (!success) {
+      alert('Failed to update section status. Please try again.');
+    }
   };
 
   const handleCreateWarehouse = async (type: 'indoor' | 'outdoor', data: { name: string; sections: number }) => {
@@ -150,8 +157,9 @@ export default function Home() {
       .filter(([key]) => key.startsWith(letter))
       .map(([, status]) => {
         switch (status) {
-          case 'green': return 0 as UtilizationValue
-          case 'red': return 100 as UtilizationValue
+main
+          case 'green': return 100 as UtilizationValue
+          case 'red': return 0 as UtilizationValue
           default: return 0 as UtilizationValue
         }
       })
@@ -198,6 +206,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Error adding sections:', error);
+      alert(error instanceof Error ? error.message : 'Failed to add sections. Please try again.');
     } finally {
       setAddingSections(false);
     }
@@ -219,18 +228,37 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900">
-      {/* Theme toggle button */}
-      <button
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        className="fixed top-2 right-2 p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors z-50"
-        aria-label="Toggle theme"
-      >
-        {theme === 'dark' ? (
-          <SunIcon className="h-5 w-5 text-yellow-500" />
-        ) : (
-          <MoonIcon className="h-5 w-5 text-gray-700" />
-        )}
-      </button>
+main
+      {/* Theme toggle and color blind mode buttons */}
+      <div className="fixed top-4 right-4 flex flex-col gap-2">
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="p-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors shadow-md"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? (
+            <SunIcon className="h-6 w-6 text-yellow-500" />
+          ) : (
+            <MoonIcon className="h-6 w-6 text-gray-700" />
+          )}
+        </button>
+        
+        <button
+          onClick={() => setColorBlindMode(!colorBlindMode)}
+          className={`p-2 rounded-lg transition-colors shadow-md ${
+            colorBlindMode 
+              ? 'bg-purple-500 hover:bg-purple-600 text-white' 
+              : 'bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+          }`}
+          aria-label="Toggle color blind mode"
+        >
+          {colorBlindMode ? (
+            <EyeSlashIcon className="h-6 w-6" />
+          ) : (
+            <EyeIcon className="h-6 w-6" />
+          )}
+        </button>
+      </div>
 
       <div className="min-h-screen p-4 sm:p-8 flex flex-col items-center justify-start sm:justify-center">
         <div className="flex flex-col items-center mb-6 sm:mb-12">
@@ -303,6 +331,16 @@ export default function Home() {
               <div className="absolute z-10 w-full sm:w-auto mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mt-2">
                 {indoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
+                  console.log('Warehouse data:', warehouse);
+                  console.log('Last modified value:', warehouse.last_modified);
+                  
+                  // Handle missing last_modified field
+                  const lastModifiedValue = warehouse.last_modified || warehouse.updated_at || new Date().toISOString();
+                  console.log('Using last modified value:', lastModifiedValue);
+                  
+                  const lastModified = new Date(lastModifiedValue).toLocaleString()
+                  console.log('Formatted last modified:', lastModified);
+                  
                   return (
                     <WarehouseItem
                       key={warehouse.letter}
@@ -310,6 +348,7 @@ export default function Home() {
                       onClick={() => handleWarehouseClick(warehouse.letter)}
                       isSelected={selectedWarehouse === warehouse.letter}
                       utilization={utilization}
+                      lastModified={lastModifiedValue}
                     />
                   )
                 })}
@@ -342,6 +381,16 @@ export default function Home() {
               <div className="absolute z-10 w-full sm:w-auto mb-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 mt-2">
                 {outdoorWarehouses.map((warehouse) => {
                   const utilization = calculateUtilization(warehouse.letter)
+                  console.log('Warehouse data:', warehouse);
+                  console.log('Last modified value:', warehouse.last_modified);
+                  
+                  // Handle missing last_modified field
+                  const lastModifiedValue = warehouse.last_modified || warehouse.updated_at || new Date().toISOString();
+                  console.log('Using last modified value:', lastModifiedValue);
+                  
+                  const lastModified = new Date(lastModifiedValue).toLocaleString()
+                  console.log('Formatted last modified:', lastModified);
+                  
                   return (
                     <WarehouseItem
                       key={warehouse.letter}
@@ -349,6 +398,7 @@ export default function Home() {
                       onClick={() => handleWarehouseClick(warehouse.letter)}
                       isSelected={selectedWarehouse === warehouse.letter}
                       utilization={utilization}
+                      lastModified={lastModifiedValue}
                     />
                   )
                 })}
@@ -457,7 +507,7 @@ export default function Home() {
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm.type && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
               <h3 className="text-xl font-bold mb-4">Select Warehouses to Remove</h3>
               <div className="mb-6 max-h-96 overflow-y-auto">
@@ -517,7 +567,7 @@ export default function Home() {
 
         {/* Final Confirmation Modal */}
         {showFinalConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
               <h3 className="text-xl font-bold mb-4">Confirm Warehouse Removal</h3>
               <div className="mb-6">
@@ -556,9 +606,44 @@ export default function Home() {
           </div>
         )}
 
+main
+        {selectedWarehouse && (
+          <div className="mt-8">
+            <div className="flex justify-center">
+              <DraggableGrid
+                sections={Object.entries(buttonStatus).map(([key, status]) => ({
+                  key,
+                  status,
+                  sectionNumber: key.slice(1),
+                  position: sectionPositions[key],
+                }))}
+                onSectionMove={(sectionId, position) => {
+                  console.log('Section moved:', sectionId, position);
+                }}
+                onStatusChange={async (sectionId, status) => {
+                  const warehouseLetter = sectionId.charAt(0);
+                  const sectionNumber = parseInt(sectionId.slice(1));
+                  await updateSectionStatus(warehouseLetter, sectionNumber, status);
+                }}
+                onSectionDelete={(sectionId) => {
+                  const warehouseLetter = sectionId.charAt(0);
+                  const sectionNumber = parseInt(sectionId.slice(1));
+                  removeSection(warehouseLetter, sectionNumber);
+                }}
+                onSectionPositionUpdate={async (warehouseLetter, sectionNumber, position) => {
+                  return await updateSectionPosition(warehouseLetter, sectionNumber, position);
+                }}
+                currentWarehouse={[...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === selectedWarehouse)?.name}
+                onAddSections={() => setShowAddSectionsModal(true)}
+                colorBlindMode={colorBlindMode}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Add Sections Modal */}
         {showAddSectionsModal && selectedWarehouse && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full">
               <h3 className="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">
                 Add Sections to {
@@ -602,7 +687,7 @@ export default function Home() {
 
         {/* Undo Panel */}
         {removedSections.length > 0 && removedSections[0] && (
-          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 animate-fade-in-up">
+          <div className="fixed bottom-4 right-4 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 animate-fade-in-up z-40">
             <div className="flex items-center gap-3 relative">
               <div className="absolute bottom-0 left-0 h-1 bg-gray-200 dark:bg-gray-700 w-full rounded-full overflow-hidden">
                 <div className="h-full bg-blue-500 animate-progress" />
