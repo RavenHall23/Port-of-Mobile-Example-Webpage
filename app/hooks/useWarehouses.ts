@@ -63,6 +63,7 @@ export function useWarehouses() {
       sectionsData.forEach(section => {
         const warehouse = warehousesWithLastModified.find(w => w.id === section.warehouse_id);
         if (warehouse) {
+main
           const sectionKey = `${warehouse.letter}${section.section_number}`;
           newButtonStatus[sectionKey] = section.status;
           sectionPositions[sectionKey] = {
@@ -490,11 +491,12 @@ export function useWarehouses() {
     // Calculate percentages for each section
     const calculateSectionPercentage = (status: WarehouseStatus) => {
       switch (status) {
+main
         case 'green': return 100
         case 'red': return 0
         default: return 0
       }
-    }
+    };
 
     // Calculate warehouse type statistics
     const calculateWarehouseStats = (warehouses: Warehouse[]) => {
@@ -596,10 +598,8 @@ export function useWarehouses() {
     // Legend
     const legendY = summaryY + 35
     doc.text('Status Legend:', 14, legendY)
-    doc.text('Green (100%): Available', 14, legendY + 7)
-    doc.text('Yellow (75%): Partially Available', 14, legendY + 14)
-    doc.text('Orange (50%): Limited Availability', 14, legendY + 21)
-    doc.text('Red (0%): Not Available', 14, legendY + 28)
+    doc.text('Green (0%): Available', 14, legendY + 7)
+    doc.text('Red (100%): Not Available', 14, legendY + 14)
 
     // Download the PDF
     doc.save(`warehouse-status-${date.toISOString().replace(/[:.]/g, '-')}.pdf`)
@@ -608,10 +608,13 @@ export function useWarehouses() {
   const addSections = async (warehouseLetter: string, numberOfSections: number) => {
     if (!supabase) {
       console.error('Supabase client not initialized');
+main
       throw new Error('Database connection not initialized');
     }
     
     try {
+      console.log('Starting to add sections:', { warehouseLetter, numberOfSections });
+      
       // Get the current warehouse
       const { data: warehouse, error: warehouseError } = await supabase
         .from('warehouses')
@@ -621,11 +624,13 @@ export function useWarehouses() {
 
       if (warehouseError) {
         console.error('Error fetching warehouse:', warehouseError);
+main
         throw new Error(`Failed to fetch warehouse: ${warehouseError.message}`);
       }
 
       if (!warehouse) {
         console.error('Warehouse not found:', warehouseLetter);
+main
         throw new Error(`Warehouse ${warehouseLetter} not found`);
       }
 
@@ -635,6 +640,7 @@ export function useWarehouses() {
         .map(key => parseInt(key.slice(1)));
       
       const highestSectionNumber = Math.max(0, ...existingSections);
+      console.log('Current highest section number:', highestSectionNumber);
 
       // Create new sections starting from the next number
       const sectionsToInsert = Array.from(
@@ -647,6 +653,7 @@ export function useWarehouses() {
         })
       );
 
+main
       console.log('Attempting to insert sections:', sectionsToInsert);
 
       // Insert new sections
@@ -656,6 +663,7 @@ export function useWarehouses() {
 
       if (sectionsError) {
         console.error('Error inserting sections:', sectionsError);
+main
         console.error('Error details:', JSON.stringify(sectionsError, null, 2));
         throw new Error(`Failed to insert sections: ${sectionsError.message}`);
       }
@@ -673,6 +681,7 @@ export function useWarehouses() {
     } catch (error) {
       console.error('Error adding sections:', error);
       if (error instanceof Error) {
+main
         throw error;
       }
       throw new Error('Failed to add sections: Unknown error occurred');
@@ -700,6 +709,7 @@ export function useWarehouses() {
     clearRemovedSections,
     sectionPositions
   }
+main
 }
 
 // Add type for the hook's return value
