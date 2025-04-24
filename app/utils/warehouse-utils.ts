@@ -1,4 +1,3 @@
-main
 export const statusColors = {
   green: {
     color: 'bg-green-500 hover:bg-green-600',

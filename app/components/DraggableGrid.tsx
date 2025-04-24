@@ -151,12 +151,9 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
           padding: '8px'
         }}
       >
-        <div className="flex flex-col items-center">
-          <span className={`${gridSize < 100 ? 'text-lg' : 'text-sm'}`}>{section.number}</span>
-          {getStatusIndicator(section.status) && (
-            <span className="text-white font-bold text-lg">{getStatusIndicator(section.status)}</span>
-          )}
-        </div>
+        {getStatusIndicator(section.status) && (
+          <span className="text-white font-bold text-lg">{getStatusIndicator(section.status)}</span>
+        )}
       </button>
       {showDeleteButton && (
         <button

@@ -63,7 +63,6 @@ export function useWarehouses() {
       sectionsData.forEach(section => {
         const warehouse = warehousesWithLastModified.find(w => w.id === section.warehouse_id);
         if (warehouse) {
-main
           const sectionKey = `${warehouse.letter}${section.section_number}`;
           newButtonStatus[sectionKey] = section.status;
           sectionPositions[sectionKey] = {
@@ -491,7 +490,6 @@ main
     // Calculate percentages for each section
     const calculateSectionPercentage = (status: WarehouseStatus) => {
       switch (status) {
-main
         case 'green': return 100
         case 'red': return 0
         default: return 0
@@ -608,7 +606,6 @@ main
   const addSections = async (warehouseLetter: string, numberOfSections: number) => {
     if (!supabase) {
       console.error('Supabase client not initialized');
-main
       throw new Error('Database connection not initialized');
     }
     
@@ -624,13 +621,11 @@ main
 
       if (warehouseError) {
         console.error('Error fetching warehouse:', warehouseError);
-main
         throw new Error(`Failed to fetch warehouse: ${warehouseError.message}`);
       }
 
       if (!warehouse) {
         console.error('Warehouse not found:', warehouseLetter);
-main
         throw new Error(`Warehouse ${warehouseLetter} not found`);
       }
 
@@ -653,7 +648,6 @@ main
         })
       );
 
-main
       console.log('Attempting to insert sections:', sectionsToInsert);
 
       // Insert new sections
@@ -663,7 +657,6 @@ main
 
       if (sectionsError) {
         console.error('Error inserting sections:', sectionsError);
-main
         console.error('Error details:', JSON.stringify(sectionsError, null, 2));
         throw new Error(`Failed to insert sections: ${sectionsError.message}`);
       }
@@ -681,7 +674,6 @@ main
     } catch (error) {
       console.error('Error adding sections:', error);
       if (error instanceof Error) {
-main
         throw error;
       }
       throw new Error('Failed to add sections: Unknown error occurred');
@@ -709,7 +701,6 @@ main
     clearRemovedSections,
     sectionPositions
   }
-main
 }
 
 // Add type for the hook's return value
