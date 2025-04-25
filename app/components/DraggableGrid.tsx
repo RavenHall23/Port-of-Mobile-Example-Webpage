@@ -36,6 +36,9 @@ interface DraggableSectionProps {
   colorBlindMode: boolean;
   isMobile: boolean;
   middleColumnIndex: number;
+  rowGap: number;
+  columnGap: number;
+  aisleWidth: number;
 }
 
 const DraggableSection: React.FC<DraggableSectionProps> = ({ 
@@ -46,7 +49,10 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   gridSize,
   colorBlindMode,
   isMobile,
-  middleColumnIndex
+  middleColumnIndex,
+  rowGap,
+  columnGap,
+  aisleWidth
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   
@@ -57,7 +63,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       type: 'section',
       currentPosition: section.position
     },
-    collect: (monitor) => ({
+    collect: monitor => ({
       isDragging: monitor.isDragging()
     })
   }), [section.id, section.position]);
@@ -68,27 +74,30 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
     <div
       ref={ref}
       data-testid={`section-${section.id}`}
-      className={`absolute cursor-move group ${isDragging ? 'z-50' : 'z-10'}`}
+      className={`absolute cursor-move group transition-all duration-300 ${isDragging ? 'z-50' : 'z-10'}`}
       style={{
-        left: `${section.position.x * (gridSize + 8) + 8}px`,
-        top: `${section.position.y * (gridSize + 8) + 8}px`,
+        left: `${section.position.x * gridSize}px`,
+        top: `${section.position.y * (gridSize + rowGap)}px`,
         width: `${gridSize}px`,
         height: `${gridSize}px`,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.7 : 1,
         transform: isDragging ? 'scale(1.05)' : 'scale(1)',
-        transition: 'transform 0.2s ease-out, opacity 0.2s ease-out'
       }}
     >
       <button
-        className={`w-full h-full rounded-xl flex items-center justify-center text-white font-semibold shadow-lg transition-all duration-300 backdrop-blur-sm ${
-          section.status === 'green' 
-            ? 'bg-emerald-500/90 hover:bg-emerald-600/90' 
-            : 'bg-red-500/90 hover:bg-red-600/90'
-        } ${colorBlindMode ? 'pattern-diagonal-lines' : ''}`}
+        className={`w-full h-full rounded-lg flex items-center justify-center shadow-lg 
+                   transition-all duration-300 backdrop-blur-sm border border-white/10
+                   ${section.status === 'green' 
+                     ? 'bg-emerald-500/90 hover:bg-emerald-500/95' 
+                     : 'bg-red-500/90 hover:bg-red-500/95'
+                   } ${colorBlindMode ? 'pattern-diagonal-lines' : ''}`}
         onClick={() => onStatusChange(section.id, section.status === 'green' ? 'red' : 'green')}
       />
       <button
-        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500/90 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-red-600/90 transition-all duration-300 opacity-0 group-hover:opacity-100"
+        className="absolute -top-1 -right-1 w-5 h-5 bg-red-500/90 text-white/90 rounded-full 
+                   flex items-center justify-center shadow-lg hover:bg-red-600/95 
+                   transition-all duration-300 opacity-0 group-hover:opacity-100 text-xs
+                   border border-white/10"
         onClick={() => onDelete(section.id)}
       >
         ×
@@ -258,24 +267,33 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       const mobile = window.innerWidth < 768 || isTouchDevice();
       setIsMobile(mobile);
       
-      // Adjust grid size based on screen width
-      if (mobile) {
-        setGridSize(60);
-        setGridWidth(5); // 2 columns on each side + 1 aisle
-        setGridHeight(8);
-        setMiddleColumnIndex(2);
-      } else {
-        setGridSize(80);
-        setGridWidth(7); // 3 columns on each side + 1 aisle
-        setGridHeight(8);
-        setMiddleColumnIndex(3);
-      }
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const minSize = Math.min(
+        Math.floor((vw - 64) / 5), // More space for horizontal gaps
+        Math.floor((vh - 120) / 12) // Adjusted for vertical spacing
+      );
+      
+      setGridSize(minSize);
+      setGridWidth(5);
+      setGridHeight(10);
+      setMiddleColumnIndex(2);
     };
 
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Constants for layout with improved spacing
+  const columnGap = 8; // Increased horizontal gap
+  const rowGap = 8; // Vertical gap
+  const aisleWidth = 12; // Wider aisle
+
+  const isValidColumn = (x: number) => {
+    // Allow positions in first two columns (0,1) or last two columns (3,4)
+    return (x <= 1) || (x >= 3 && x <= 4);
+  };
 
   const handleDrop = async (sectionId: string, newPosition: Position) => {
     // Don't allow dropping in the aisle column
@@ -461,152 +479,170 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   aisleDrag(aisleRef);
   aisleDrop(gridRef);
 
+  // Add styles for consistent box sizing
+  const boxStyles = {
+    width: `${gridSize}px`,
+    height: `${gridSize}px`,
+    borderRadius: '8px',
+  };
+
   return (
-    <div className="flex flex-col items-center w-full">
-      <div className="mb-6 flex flex-col gap-4 bg-white/5 backdrop-blur-sm p-4 rounded-xl shadow-lg w-full max-w-full border border-white/10">
-        {/* Current Warehouse Label */}
-        {currentWarehouse && (
-          <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-600/90 via-blue-500/90 to-cyan-400/90 backdrop-blur-sm rounded-xl shadow-lg transform transition-all duration-300 hover:shadow-xl mx-4 sm:mx-0 max-w-[280px] sm:max-w-none mx-auto border border-white/20">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col items-center flex-grow">
-                <span className="text-white/80 font-light text-xs sm:text-sm uppercase tracking-wider mb-1">Selected Space:</span>
-                <span className="text-white font-bold text-xl sm:text-3xl text-center">{currentWarehouse}</span>
+    <div className="relative flex flex-col min-h-screen">
+      {/* Header */}
+      <div className="absolute top-0 left-0 right-0 z-10">
+        <div className="w-full max-w-lg mx-auto px-4 pt-4">
+          {currentWarehouse && (
+            <div className="bg-gradient-to-r from-blue-600/10 to-cyan-500/10 backdrop-blur-sm rounded-lg border border-white/5 overflow-hidden">
+              <div className="flex items-center justify-between p-2">
+                <h2 className="text-white/90 text-sm font-medium">{currentWarehouse}</h2>
+                {onClose && (
+                  <button
+                    onClick={onClose}
+                    className="p-1 hover:bg-white/5 rounded-md transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-white/70" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                  </button>
+                )}
               </div>
-              {/* Close button */}
-              <button
-                onClick={onClose}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                aria-label="Close warehouse view"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-6 w-6 text-white/70 hover:text-white"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-        )}
-        
-        {/* Controls Row */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full px-4 sm:px-0">
-          {onAddSections && (
-            <div className="flex items-center justify-center w-full sm:w-auto max-w-[280px] sm:max-w-none">
-              <button 
-                onClick={onAddSections}
-                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-500 dark:to-cyan-400 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
-                title="Add sections"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-5 w-5" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
-                  />
-                </svg>
-                <span>Add Sections</span>
-              </button>
             </div>
           )}
         </div>
       </div>
-      
-      <DndProvider backend={backend}>
-        <div className="relative bg-gray-900/50 backdrop-blur-md rounded-2xl shadow-2xl p-8 overflow-hidden mx-auto border border-white/10">
-          {/* Grid container */}
-          <div
-            style={{
-              width: `${(gridWidth * (gridSize + 8)) + 48}px`,
-              height: `${(gridHeight * (gridSize + 8)) + 48}px`,
-              minWidth: isMobile ? '320px' : '600px',
-              minHeight: isMobile ? '400px' : '600px',
-              maxWidth: '100%',
-              maxHeight: '80vh',
-              position: 'relative'
-            }}
-          >
-            {/* Drop zones */}
-            {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
-              const x = index % gridWidth;
-              const y = Math.floor(index / gridWidth);
-              
-              if (x === middleColumnIndex) return null;
-              
-              return (
-                <div
-                  key={`cell-${x}-${y}`}
-                  className="absolute"
-                  style={{
-                    left: `${x * (gridSize + 8) + 8}px`,
-                    top: `${y * (gridSize + 8) + 8}px`,
-                    width: `${gridSize}px`,
-                    height: `${gridSize}px`
-                  }}
-                >
-                  <DropZone
-                    x={x}
-                    y={y}
-                    onDrop={handleDrop}
-                    gridSize={gridSize}
-                    isOccupied={sectionStates.some(
-                      s => s.position.x === x && s.position.y === y
-                    )}
-                  />
-                </div>
-              );
-            })}
 
-            {/* Aisle */}
+      {/* Main Grid - Skewed and Centered */}
+      <div className="flex-1 flex items-center justify-center transform -translate-x-2">
+        <DndProvider backend={backend}>
+          <div className="relative p-4 transform skew-x-1">
             <div
-              className="absolute bg-gray-800/50 backdrop-blur-sm"
               style={{
-                left: `${middleColumnIndex * (gridSize + 8)}px`,
-                top: 0,
-                width: `${gridSize + 8}px`,
-                height: '100%',
-                zIndex: 5
+                width: `${(4 * gridSize) + (3 * columnGap) + aisleWidth}px`,
+                height: `${(10 * gridSize) + (9 * rowGap)}px`,
+                position: 'relative',
+                transform: 'perspective(1000px) rotateY(2deg)',
+                transformStyle: 'preserve-3d'
               }}
             >
-              <div className="flex items-center justify-center h-full">
-                <span className="text-cyan-400/80 font-medium tracking-widest rotate-90 transform text-sm">
-                  AISLE
-                </span>
-              </div>
-            </div>
+              {/* Drop zones */}
+              {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
+                const x = index % gridWidth;
+                const y = Math.floor(index / gridWidth);
+                
+                if (x === middleColumnIndex) return null;
+                
+                const xPosition = x < middleColumnIndex
+                  ? x * (gridSize + columnGap)
+                  : (x - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
+                
+                const yPosition = y * (gridSize + rowGap);
+                
+                return (
+                  <div
+                    key={`cell-${x}-${y}`}
+                    className="absolute transition-all duration-200"
+                    style={{
+                      left: `${xPosition}px`,
+                      top: `${yPosition}px`,
+                      width: `${gridSize}px`,
+                      height: `${gridSize}px`,
+                      transform: 'translateZ(0)'
+                    }}
+                  >
+                    <DropZone
+                      x={x}
+                      y={y}
+                      onDrop={handleDrop}
+                      gridSize={gridSize}
+                      isOccupied={sectionStates.some(
+                        s => s.position.x === x && s.position.y === y
+                      )}
+                    />
+                  </div>
+                );
+              })}
 
-            {/* Sections */}
-            {sectionStates.map((section) => (
-              <DraggableSection
-                key={`section-${section.id}`}
-                section={section}
-                onMove={(id, position) => handleDrop(id, position)}
-                onStatusChange={handleStatusChange}
-                onDelete={handleDelete}
-                gridSize={gridSize}
-                colorBlindMode={colorBlindMode}
-                isMobile={isMobile}
-                middleColumnIndex={middleColumnIndex}
-              />
-            ))}
+              {/* Aisle */}
+              <div
+                className="absolute backdrop-blur-sm"
+                style={{
+                  left: `${2 * (gridSize + columnGap)}px`,
+                  top: 0,
+                  width: `${aisleWidth}px`,
+                  height: '100%',
+                  zIndex: 5,
+                  transform: 'translateZ(2px)'
+                }}
+              >
+                <div className="flex items-center justify-center h-full">
+                  <span className="text-blue-400/40 font-medium tracking-widest rotate-90 transform text-[8px]">
+                    ·
+                  </span>
+                </div>
+              </div>
+
+              {/* Sections */}
+              {sectionStates.map((section) => {
+                const isLeftSide = section.position.x < middleColumnIndex;
+                const adjustedX = isValidColumn(section.position.x) 
+                  ? section.position.x 
+                  : isLeftSide ? 1 : 3;
+                
+                const xPosition = adjustedX < middleColumnIndex
+                  ? adjustedX * (gridSize + columnGap)
+                  : (adjustedX - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
+                
+                const yPosition = section.position.y * (gridSize + rowGap);
+                
+                return (
+                  <DraggableSection
+                    key={`section-${section.id}`}
+                    section={{
+                      ...section,
+                      position: {
+                        x: adjustedX,
+                        y: section.position.y
+                      }
+                    }}
+                    onMove={(id, position) => {
+                      const newX = position.x < middleColumnIndex
+                        ? Math.min(position.x, 1)
+                        : Math.max(3, 4);
+                      handleDrop(id, { ...position, x: newX });
+                    }}
+                    onStatusChange={handleStatusChange}
+                    onDelete={handleDelete}
+                    gridSize={gridSize}
+                    colorBlindMode={colorBlindMode}
+                    isMobile={isMobile}
+                    middleColumnIndex={middleColumnIndex}
+                    rowGap={rowGap}
+                    columnGap={columnGap}
+                    aisleWidth={aisleWidth}
+                  />
+                );
+              })}
+            </div>
           </div>
+        </DndProvider>
+      </div>
+
+      {/* Footer Button */}
+      {onAddSections && (
+        <div className="absolute bottom-0 left-0 right-0 pb-4 flex justify-center">
+          <button 
+            onClick={onAddSections}
+            className="px-4 py-2 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 text-white rounded-lg 
+                     hover:from-blue-600/90 hover:to-cyan-500/90 transition-all duration-300 shadow-lg 
+                     hover:shadow-xl flex items-center gap-2 backdrop-blur-sm border border-white/10"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            <span className="text-sm font-medium">Add Section</span>
+          </button>
         </div>
-      </DndProvider>
+      )}
     </div>
   );
 };
