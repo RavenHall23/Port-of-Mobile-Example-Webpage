@@ -7,6 +7,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
+import { TouchBackend } from 'react-dnd-touch-backend'
 import { WarehouseItem } from "./components/WarehouseItem";
 import { WarehouseForm } from "./components/WarehouseForm";
 import { useWarehouses, type UseWarehousesReturn } from "./hooks/useWarehouses";
@@ -67,6 +68,7 @@ export default function Home() {
   const [isRemovingIndoor, setIsRemovingIndoor] = useState(false);
   const [isRemovingOutdoor, setIsRemovingOutdoor] = useState(false);
   const [showAddWarehouseModal, setShowAddWarehouseModal] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
+  const [isMobile, setIsMobile] = useState(false);
   
   const warehouseData = useWarehouses() as unknown as UseWarehousesReturn;
   const {
@@ -80,9 +82,30 @@ export default function Home() {
     sectionPositions,
     createWarehouse,
     addSections,
+    removeWarehouse,
   } = warehouseData;
 
   const { theme, setTheme } = useTheme()
+
+  useEffect(() => {
+    const isTouchDevice = () => {
+      if (typeof window === 'undefined') return false;
+      return (
+        'ontouchstart' in window ||
+        navigator.maxTouchPoints > 0 ||
+        (navigator as any).msMaxTouchPoints > 0
+      );
+    };
+
+    setIsMobile(window.innerWidth < 768 || isTouchDevice());
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768 || isTouchDevice());
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const backend = isMobile ? TouchBackend : HTML5Backend;
 
   // Add click outside handler
   useEffect(() => {
@@ -225,11 +248,29 @@ export default function Home() {
   };
 
   const handleFinalConfirm = async () => {
-    // Here you would implement the actual warehouse removal logic
-    // For now, we'll just close the modal and clear the selection
-    setShowFinalConfirm(false);
-    setWarehousesToDelete(new Set());
-    setShowDeleteConfirm({ type: null });
+    try {
+      // Remove each selected warehouse
+      for (const letter of Array.from(warehousesToDelete)) {
+        await removeWarehouse(letter);
+      }
+      
+      // Reset states
+      setShowFinalConfirm(false);
+      setWarehousesToDelete(new Set());
+      setShowDeleteConfirm({ type: null });
+      
+      // If the currently selected warehouse was deleted, clear the selection
+      if (selectedWarehouse && warehousesToDelete.has(selectedWarehouse)) {
+        setSelectedWarehouse(null);
+      }
+
+      // Reset the removing states
+      setIsRemovingIndoor(false);
+      setIsRemovingOutdoor(false);
+    } catch (error) {
+      console.error('Error removing warehouses:', error);
+      // Optionally add error handling UI here
+    }
   };
 
   if (loading) {
@@ -239,7 +280,7 @@ export default function Home() {
   }
 
   return (
-    <DndProvider backend={HTML5Backend}>
+    <DndProvider backend={backend}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       {/* Theme toggle and color blind mode buttons */}
         <div className="fixed top-6 right-6 flex flex-col gap-3 z-50">
@@ -407,13 +448,15 @@ export default function Home() {
           {/* Warehouse Selection */}
           <div className="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 gap-8 mb-12">
             {/* Indoor Warehouses Dropdown */}
-            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm relative z-[60]">
               <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100 text-center">Indoor Warehouses</h2>
               <div className="relative dropdown-container">
                 <button
                   onClick={() => {
-                    setShowIndoorDropdown(!showIndoorDropdown);
-                    setShowOutdoorDropdown(false);
+                    if (!showAddWarehouseModal.type && !showDeleteConfirm.type) {
+                      setShowIndoorDropdown(!showIndoorDropdown);
+                      setShowOutdoorDropdown(false);
+                    }
                   }}
                   className="w-full h-16 px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300 bg-gray-50/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md hover:shadow-lg flex items-center justify-between"
                 >
@@ -429,13 +472,13 @@ export default function Home() {
                   />
                 </button>
                 
-                {showIndoorDropdown && (
-                  <div className="absolute z-50 w-full mt-2 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                {showIndoorDropdown && !showAddWarehouseModal.type && !showDeleteConfirm.type && (
+                  <div className="absolute z-[65] w-full mt-2 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
                     {/* Management Options */}
                     <div className="px-6 py-3 flex gap-2">
                       <button
                         onClick={() => {
-                          setShowAddSectionsModal(true);
+                          setShowAddWarehouseModal({ type: 'indoor' });
                           setShowIndoorDropdown(false);
                         }}
                         className="flex-1 px-4 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -443,7 +486,7 @@ export default function Home() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Add
+                        Add Warehouse
                       </button>
                       <button
                         onClick={() => {
@@ -503,13 +546,15 @@ export default function Home() {
         </div>
 
             {/* Outdoor Warehouses Dropdown */}
-            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
+            <div className="bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm relative z-[60]">
               <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-100 text-center">Outdoor Warehouses</h2>
               <div className="relative dropdown-container">
                 <button
                   onClick={() => {
-                    setShowOutdoorDropdown(!showOutdoorDropdown);
-                    setShowIndoorDropdown(false);
+                    if (!showAddWarehouseModal.type && !showDeleteConfirm.type) {
+                      setShowOutdoorDropdown(!showOutdoorDropdown);
+                      setShowIndoorDropdown(false);
+                    }
                   }}
                   className="w-full h-16 px-6 py-4 rounded-xl text-lg font-medium transition-all duration-300 bg-gray-50/80 dark:bg-gray-700/80 hover:bg-white dark:hover:bg-gray-600 shadow-md hover:shadow-lg flex items-center justify-between"
                 >
@@ -525,13 +570,13 @@ export default function Home() {
                   />
                 </button>
                 
-                {showOutdoorDropdown && (
-                  <div className="absolute z-50 w-full mt-2 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
+                {showOutdoorDropdown && !showAddWarehouseModal.type && !showDeleteConfirm.type && (
+                  <div className="absolute z-[65] w-full mt-2 py-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-100 dark:border-gray-700">
                     {/* Management Options */}
                     <div className="px-6 py-3 flex gap-2">
               <button
                         onClick={() => {
-                          setShowAddSectionsModal(true);
+                          setShowAddWarehouseModal({ type: 'outdoor' });
                           setShowOutdoorDropdown(false);
                         }}
                         className="flex-1 px-4 py-2 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -539,7 +584,7 @@ export default function Home() {
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                         </svg>
-                        Add
+                        Add Warehouse
                       </button>
                       <button
                         onClick={() => {
@@ -639,102 +684,102 @@ export default function Home() {
 
           {/* Modals */}
         {showDeleteConfirm.type && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
               <div className="w-full max-w-lg mx-4 bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
                 <h3 className="text-xl font-bold mb-6">Select Warehouses to Remove</h3>
-              <div className="mb-6 max-h-96 overflow-y-auto">
-                <div className="space-y-2">
-                  {showDeleteConfirm.type === 'indoor' 
-                    ? indoorWarehouses.map((warehouse) => (
-                        <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={warehousesToDelete.has(warehouse.letter)}
-                            onChange={() => toggleWarehouseSelection(warehouse.letter)}
-                            className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
-                          />
-                          <span>{warehouse.name}</span>
-                        </label>
-                      ))
-                    : outdoorWarehouses.map((warehouse) => (
-                        <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={warehousesToDelete.has(warehouse.letter)}
-                            onChange={() => toggleWarehouseSelection(warehouse.letter)}
-                            className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
-                          />
-                          <span>{warehouse.name}</span>
-                        </label>
-                      ))
-                  }
+                <div className="mb-6 max-h-96 overflow-y-auto">
+                  <div className="space-y-2">
+                    {showDeleteConfirm.type === 'indoor' 
+                      ? indoorWarehouses.map((warehouse) => (
+                          <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={warehousesToDelete.has(warehouse.letter)}
+                              onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                              className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                            />
+                            <span>{warehouse.name}</span>
+                          </label>
+                        ))
+                      : outdoorWarehouses.map((warehouse) => (
+                          <label key={warehouse.letter} className="flex items-center space-x-3 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={warehousesToDelete.has(warehouse.letter)}
+                              onChange={() => toggleWarehouseSelection(warehouse.letter)}
+                              className="h-4 w-4 text-red-500 rounded border-gray-300 focus:ring-red-500"
+                            />
+                            <span>{warehouse.name}</span>
+                          </label>
+                        ))
+                    }
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mb-4">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">
+                    {warehousesToDelete.size} warehouse{warehousesToDelete.size !== 1 ? 's' : ''} selected
+                  </span>
+                </div>
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => {
+                      setShowDeleteConfirm({ type: null });
+                      setWarehousesToDelete(new Set());
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRemoveSelectedWarehouses}
+                    disabled={warehousesToDelete.size === 0}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Continue
+                  </button>
                 </div>
               </div>
-              <div className="flex justify-between items-center mb-4">
-                <span className="text-sm text-gray-600 dark:text-gray-400">
-                  {warehousesToDelete.size} warehouse{warehousesToDelete.size !== 1 ? 's' : ''} selected
-                </span>
-              </div>
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => {
-                    setShowDeleteConfirm({ type: null });
-                    setWarehousesToDelete(new Set());
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleRemoveSelectedWarehouses}
-                  disabled={warehousesToDelete.size === 0}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Continue
-                </button>
-              </div>
             </div>
-          </div>
         )}
 
         {showFinalConfirm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[80]">
               <div className="w-full max-w-lg mx-4 bg-white/90 dark:bg-gray-800/90 p-8 rounded-2xl shadow-xl backdrop-blur-sm">
                 <h3 className="text-xl font-bold mb-6">Confirm Warehouse Removal</h3>
-              <div className="mb-6">
-                <p className="text-gray-700 dark:text-gray-300 mb-4">
-                  Are you sure you want to remove the following warehouse{warehousesToDelete.size !== 1 ? 's' : ''}?
-                </p>
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {Array.from(warehousesToDelete).map((letter) => {
-                    const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
-                    return (
-                      <div key={letter} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                        {warehouse?.name}
-                      </div>
-                    );
-                  })}
+                <div className="mb-6">
+                  <p className="text-gray-700 dark:text-gray-300 mb-4">
+                    Are you sure you want to remove the following warehouse{warehousesToDelete.size !== 1 ? 's' : ''}?
+                  </p>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {Array.from(warehousesToDelete).map((letter) => {
+                      const warehouse = [...indoorWarehouses, ...outdoorWarehouses].find(w => w.letter === letter);
+                      return (
+                        <div key={letter} className="p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          {warehouse?.name}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={() => {
+                      setShowFinalConfirm(false);
+                      setWarehousesToDelete(new Set());
+                    }}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleFinalConfirm}
+                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                  >
+                    Remove Warehouses
+                  </button>
                 </div>
               </div>
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => {
-                    setShowFinalConfirm(false);
-                    setWarehousesToDelete(new Set());
-                  }}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleFinalConfirm}
-                  className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                >
-                  Remove Warehouses
-                </button>
-              </div>
             </div>
-          </div>
         )}
 
         {showAddSectionsModal && selectedWarehouse && (
@@ -781,7 +826,7 @@ export default function Home() {
         )}
 
         {showAddWarehouseModal.type && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
             <Card className="w-[350px] bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle>
