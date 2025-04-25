@@ -32,6 +32,12 @@ interface RowNumber {
   value: string;
 }
 
+interface DragItem {
+  id: string;
+  type: string;
+  currentPosition: Position;
+}
+
 interface DraggableSectionProps {
   section: SectionState;
   onMove: (id: string, position: Position) => void;
@@ -54,11 +60,14 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   gridSize,
   colorBlindMode,
   isMobile,
-  middleColumnIndex
+  middleColumnIndex,
+  rowGap,
+  columnGap,
+  aisleWidth
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   
-  const [{ isDragging }, drag] = useDrag(() => ({
+  const [{ isDragging }, drag] = useDrag({
     type: 'section',
     item: {
       id: section.id,
@@ -66,13 +75,19 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       currentPosition: section.position
     },
     collect: monitor => ({
-      isDragging: monitor.isDragging()
+      isDragging: !!monitor.isDragging()
     })
-  }), [section.id, section.position]);
+  });
 
+  // Connect the drag ref
   drag(ref);
 
-  const sectionSize = gridSize - 6; // Make sections slightly smaller
+  const sectionSize = gridSize - 6;
+  const xPosition = section.position.x < middleColumnIndex
+    ? section.position.x * (gridSize + columnGap)
+    : (section.position.x - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
+  
+  const yPosition = section.position.y * (gridSize + rowGap);
 
   return (
     <div
@@ -80,12 +95,13 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
       data-testid={`section-${section.id}`}
       className={`absolute cursor-move group transition-all duration-300 ${isDragging ? 'z-50' : 'z-10'}`}
       style={{
-        left: `${(section.position.x * gridSize) + 3}px`, // Center the smaller section
-        top: `${section.position.y * gridSize}px`,
+        left: `${xPosition}px`,
+        top: `${yPosition}px`,
         width: `${sectionSize}px`,
         height: `${sectionSize}px`,
         opacity: isDragging ? 0.7 : 1,
         transform: isDragging ? 'scale(1.05)' : 'scale(1)',
+        pointerEvents: 'all'
       }}
     >
       <button
@@ -123,6 +139,7 @@ interface DraggableGridProps {
   onSectionPositionUpdate: (warehouseLetter: string, sectionNumber: number, position: Position) => Promise<boolean>;
   currentWarehouse?: string;
   onAddSections?: () => void;
+  onCreateSections?: (sectionNumbers: number[]) => Promise<void>;
   onClose?: () => void;
   colorBlindMode?: boolean;
 }
@@ -137,7 +154,7 @@ const isTouchDevice = () => {
   );
 };
 
-// Add helper function to find next available position
+// Update helper function to find next available position
 const findNextAvailablePosition = (
   sectionStates: SectionState[],
   middleColumnIndex: number,
@@ -149,25 +166,26 @@ const findNextAvailablePosition = (
     sectionStates.map(section => `${section.position.x},${section.position.y}`)
   );
 
-  // Try to find a position on the left side first
+  // First try left side (columns 0 and 1)
   for (let y = 0; y < gridHeight; y++) {
-    for (let x = 0; x < middleColumnIndex; x++) {
+    for (let x = 0; x <= 1; x++) {
       if (!occupiedPositions.has(`${x},${y}`)) {
         return { x, y };
       }
     }
   }
 
-  // If left side is full, try right side
+  // Then try right side (columns 3 and 4)
   for (let y = 0; y < gridHeight; y++) {
-    for (let x = middleColumnIndex + 1; x < gridWidth; x++) {
+    for (let x = 3; x <= 4; x++) {
       if (!occupiedPositions.has(`${x},${y}`)) {
         return { x, y };
       }
     }
   }
 
-  // If no position found, return first position on left side
+  // If no position is found, return the first position (0,0) and log a warning
+  console.warn('No available positions found in grid, defaulting to (0,0)');
   return { x: 0, y: 0 };
 };
 
@@ -179,13 +197,14 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onSectionPositionUpdate,
   currentWarehouse,
   onAddSections,
+  onCreateSections,
   onClose,
   colorBlindMode = false
 }) => {
   const [gridSize, setGridSize] = useState(100);
   const [gridWidth, setGridWidth] = useState(7);
-  const [gridHeight, setGridHeight] = useState(7);
-  const [middleColumnIndex, setMiddleColumnIndex] = useState(3);
+  const [gridHeight, setGridHeight] = useState(8);
+  const [middleColumnIndex, setMiddleColumnIndex] = useState(2);
   const [isDraggingAisle, setIsDraggingAisle] = useState(false);
   const [rowLabels, setRowLabels] = useState<RowLabel[]>([]);
   const [showAddLabel, setShowAddLabel] = useState(false);
@@ -207,10 +226,13 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     }))
   );
   const [editingRowId, setEditingRowId] = useState<number | null>(null);
+  const [showRowDialog, setShowRowDialog] = useState(false);
+  const [rowCount, setRowCount] = useState('1');
+  const [isAddingRows, setIsAddingRows] = useState(false);
 
   const backend = isMobile ? TouchBackend : HTML5Backend;
 
-  // Load saved positions from localStorage
+  // Update useEffect for loading sections
   useEffect(() => {
     if (typeof window !== 'undefined' && sections.length > 0 && !initialized) {
       try {
@@ -222,8 +244,19 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         // Process sections one by one to properly track occupied positions
         for (const section of sections) {
           const savedPosition = positions[section.key];
-          const position = savedPosition || findNextAvailablePosition(
-            initialStates,
+if (savedPosition) {
+  return {
+    id: section.key,
+    position: savedPosition,
+    status: section.status,
+    number: section.sectionNumber
+  };
+}
+
+// If there's no saved position, find the next available position
+const position = savedPosition || findNextAvailablePosition(
+  initialStates,
+);
             middleColumnIndex,
             gridWidth,
             gridHeight
@@ -232,6 +265,11 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           initialStates.push({
             id: section.key,
             position,
+
+          return {
+            id: section.key,
+            position: nextPosition,
+
             status: section.status,
             number: section.sectionNumber
           });
@@ -266,13 +304,25 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       setSectionStates(prevStates => {
         const newStates = sections.map(section => {
           const existingState = prevStates.find(state => state.id === section.key);
-          const savedPositions = localStorage.getItem('sectionPositions');
-          const positions = savedPositions ? JSON.parse(savedPositions) : {};
-          const savedPosition = positions[section.key];
-          
+          if (existingState) {
+            return {
+              ...existingState,
+              status: section.status,
+              number: section.sectionNumber
+            };
+          }
+
+          // Find next available position for new section
+          const nextPosition = findNextAvailablePosition(
+            prevStates,
+            middleColumnIndex,
+            gridWidth,
+            gridHeight
+          );
+
           return {
             id: section.key,
-            position: savedPosition || existingState?.position || findNextAvailablePosition(prevStates, middleColumnIndex, gridWidth, gridHeight),
+            position: nextPosition,
             status: section.status,
             number: section.sectionNumber
           };
@@ -325,11 +375,17 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     // Check if the position is already occupied
     const isOccupied = sectionStates.some(
       section => section.id !== sectionId && 
-      section.position.x === newPosition.x && 
-      section.position.y === newPosition.y
+                section.position.x === newPosition.x && 
+                section.position.y === newPosition.y
     );
 
     if (isOccupied) {
+      return;
+    }
+
+    // Validate column position
+    const isValidColumn = newPosition.x <= 1 || (newPosition.x >= 3 && newPosition.x <= 4);
+    if (!isValidColumn) {
       return;
     }
 
@@ -521,6 +577,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     setEditingRowId(null);
   };
 
+
   // Add cleanup for drag operations
   useEffect(() => {
     return () => {
@@ -530,6 +587,104 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       }
     };
   }, [draggedSectionId]);
+
+  const handleAddRowClick = () => {
+    setShowRowDialog(true);
+  };
+
+  const handleAddRows = async () => {
+    if (!currentWarehouse || !onCreateSections) return;
+    
+    const numRows = parseInt(rowCount, 10);
+    if (isNaN(numRows) || numRows < 1) return;
+
+    setIsAddingRows(true);
+    
+    try {
+      // Get the current highest section number
+      const currentNumbers = sections.map(s => {
+        const match = s.sectionNumber.match(/\d+/);
+        return match ? parseInt(match[0], 10) : 0;
+      });
+      const highestNumber = Math.max(0, ...currentNumbers);
+
+      // Calculate new section numbers and create section states
+      const newSectionNumbers: number[] = [];
+      const newSections: SectionState[] = [];
+      
+      // Get the current highest row
+      const currentMaxY = Math.max(...sectionStates.map(s => s.position.y), -1);
+      const startRow = currentMaxY + 1;
+
+      // Create sections for each new row
+      for (let row = 0; row < numRows; row++) {
+        // For each row, create 4 sections (2 on each side)
+        for (let i = 0; i < 4; i++) {
+          const sectionNumber = highestNumber + (row * 4) + i + 1;
+          newSectionNumbers.push(sectionNumber);
+
+          // Determine x position (0,1 for left side, 3,4 for right side)
+          const x = i < 2 ? i : i + 1;
+          const y = startRow + row;
+
+          newSections.push({
+            id: `section-${sectionNumber}`,
+            position: { x, y },
+            status: 'green',
+            number: sectionNumber.toString()
+          });
+        }
+      }
+
+      // Create the new sections in the warehouse first
+      await onCreateSections(newSectionNumbers);
+
+      // Update the grid height
+      const newHeight = Math.max(gridHeight, startRow + numRows);
+      setGridHeight(newHeight);
+
+      // Update row numbers
+      setRowNumbers(prev => {
+        const currentLength = prev.length;
+        if (newHeight > currentLength) {
+          const additionalRows = Array.from(
+            { length: newHeight - currentLength },
+            (_, index) => ({
+              id: currentLength + index,
+              value: (currentLength + index + 1).toString()
+            })
+          );
+          return [...prev, ...additionalRows];
+        }
+        return prev;
+      });
+
+      // Update the section states
+      setSectionStates(prevStates => {
+        const updatedStates = [...prevStates, ...newSections];
+        
+        // Save positions to localStorage
+        try {
+          const positions = updatedStates.reduce((acc, section) => ({
+            ...acc,
+            [section.id]: section.position
+          }), {});
+          localStorage.setItem('sectionPositions', JSON.stringify(positions));
+        } catch (error) {
+          console.error('Error saving positions:', error);
+        }
+
+        return updatedStates;
+      });
+
+    } catch (error) {
+      console.error('Error adding rows:', error);
+    } finally {
+      setIsAddingRows(false);
+      setShowRowDialog(false);
+      setRowCount('1');
+    }
+  };
 
   return (
     <div className="relative flex flex-col min-h-screen">
@@ -552,11 +707,11 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                     </button>
                   )}
                 </div>
-                {onAddSections && (
-                  <div className="px-2 pb-2">
+                <div className="px-2 pb-2 flex gap-2">
+                  {onAddSections && (
                     <button 
                       onClick={onAddSections}
-                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 text-white rounded-lg 
+                      className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 text-white rounded-lg 
                                hover:from-blue-600/90 hover:to-cyan-500/90 transition-all duration-300 shadow-lg 
                                hover:shadow-xl flex items-center justify-center gap-2 backdrop-blur-sm border border-white/10"
                     >
@@ -565,15 +720,81 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                       </svg>
                       <span className="text-sm font-medium">Add Section</span>
                     </button>
-                  </div>
-                )}
+                  )}
+                  <button 
+                    onClick={handleAddRowClick}
+                    disabled={isAddingRows}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-purple-600/80 to-pink-500/80 text-white rounded-lg 
+                             hover:from-purple-600/90 hover:to-pink-500/90 transition-all duration-300 shadow-lg 
+                             hover:shadow-xl flex items-center justify-center gap-2 backdrop-blur-sm border border-white/10
+                             disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M20 13H4v-2h16v2zm-3-7H4v2h13V6zM4 18h13v-2H4v2z"/>
+                    </svg>
+                    <span className="text-sm font-medium">
+                      {isAddingRows ? 'Adding...' : 'Add Row'}
+                    </span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
       </div>
 
+      {/* Row Count Dialog */}
+      {showRowDialog && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/50 backdrop-blur-sm">
+          <div className="bg-gray-800 rounded-lg p-6 shadow-xl border border-white/10 w-80">
+            <h3 className="text-white/90 text-lg font-medium mb-4">Add Rows</h3>
+            <input
+              type="number"
+              min="1"
+              max="10"
+              value={rowCount}
+              onChange={(e) => {
+                const value = Math.min(Math.max(parseInt(e.target.value) || 1, 1), 10);
+                setRowCount(value.toString());
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleAddRows();
+                } else if (e.key === 'Escape') {
+                  setShowRowDialog(false);
+                  setRowCount('1');
+                }
+              }}
+              className="w-full px-3 py-2 bg-gray-700/50 text-white rounded-lg border border-white/10 
+                       focus:outline-none focus:ring-2 focus:ring-purple-500/50 mb-4"
+              placeholder="Number of rows (1-10)"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowRowDialog(false);
+                  setRowCount('1');
+                }}
+                className="px-4 py-2 text-white/70 hover:text-white/90 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddRows}
+                disabled={isAddingRows || parseInt(rowCount) < 1}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600/80 to-pink-500/80 text-white rounded-lg 
+                         hover:from-purple-600/90 hover:to-pink-500/90 transition-all duration-300
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAddingRows ? 'Adding...' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid - Skewed and Centered */}
+
       <div className="flex-1 flex items-center justify-center transform -translate-x-2 mt-32 z-0">
         <div className="relative p-4 transform skew-x-1">
           <div
@@ -624,6 +845,9 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             })}
 
             {/* Aisle */}
+      <div className="flex-1 flex items-center justify-center transform -translate-x-8 mt-32">
+        <DndProvider backend={backend}>
+          <div className="relative p-4 transform skew-x-1">
             <div
               className="absolute backdrop-blur-sm"
               style={{
@@ -635,6 +859,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                 transform: 'translateZ(2px)'
               }}
             >
+
               <div className="flex items-center justify-center h-full relative">
                 {/* Row Numbers */}
                 <div className="absolute top-0 left-0 w-full h-full">
@@ -673,6 +898,118 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                       )}
                     </div>
                   ))}
+
+              {/* Drop zones */}
+              {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
+                const x = index % gridWidth;
+                const y = Math.floor(index / gridWidth);
+                
+                if (x === middleColumnIndex) return null;
+                
+                const xPosition = x < middleColumnIndex
+                  ? x * (gridSize + columnGap)
+                  : (x - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
+                
+                const yPosition = y * (gridSize + rowGap);
+                
+                const isOccupied = sectionStates.some(
+                  s => s.position.x === x && s.position.y === y
+                );
+                
+                return (
+                  <div
+                    key={`cell-${x}-${y}`}
+                    className="absolute transition-all duration-200"
+                    style={{
+                      left: `${xPosition}px`,
+                      top: `${yPosition}px`,
+                      width: `${gridSize}px`,
+                      height: `${gridSize}px`,
+                      transform: 'translateZ(0)'
+                    }}
+                  >
+                    <DropZone
+                      x={x}
+                      y={y}
+                      onDrop={handleDrop}
+                      gridSize={gridSize}
+                      isOccupied={isOccupied}
+                    />
+                  </div>
+                );
+              })}
+
+              {/* Aisle */}
+              <div
+                className="absolute backdrop-blur-sm"
+                style={{
+                  left: `${2 * (gridSize + columnGap)}px`,
+                  top: 0,
+                  width: `${aisleWidth}px`,
+                  height: '100%',
+                  zIndex: 5,
+                  transform: 'translateZ(2px)'
+                }}
+              >
+                <div className="flex items-center justify-center h-full relative">
+                  {/* Row Numbers */}
+                  <div className="absolute top-0 left-0 w-full h-full flex flex-col items-start ml-4">
+                    {rowNumbers.filter(row => row.value !== '').map((row) => (
+                      <div
+                        key={`row-number-${row.id}`}
+                        className="absolute flex items-center justify-center group"
+                        style={{
+                          top: `${row.id * (gridSize + rowGap) + gridSize}px`,
+                          transform: 'translateY(-50%)',
+                          zIndex: 10,
+                          width: `${aisleWidth}px`
+                        }}
+                      >
+                        {editingRowId === row.id ? (
+                          <input
+                            type="text"
+                            value={row.value}
+                            onChange={(e) => handleNumberEdit(row.id, e.target.value)}
+                            onBlur={handleEditComplete}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleEditComplete();
+                              if (e.key === 'Escape') {
+                                handleNumberEdit(row.id, (row.id + 1).toString());
+                                handleEditComplete();
+                              }
+                            }}
+                            className="w-5 h-5 bg-gray-900/50 text-white/50 text-xs font-medium text-center outline-none border border-white/20 rounded-full"
+                            autoFocus
+                          />
+                        ) : (
+                          <div className="relative flex items-center justify-center group">
+                            <div 
+                              className="absolute inset-0 bg-gray-900/50 backdrop-blur-sm rounded-full"
+                              style={{ margin: '-0.375rem' }}
+                            />
+                            <span 
+                              className="relative text-white/50 text-xs font-medium cursor-pointer hover:text-white/70 transition-colors w-4 h-4 flex items-center justify-center"
+                              onClick={() => setEditingRowId(row.id)}
+                            >
+                              {row.value}
+                            </span>
+                            <button
+                              onClick={() => {
+                                setRowNumbers(prev => prev.filter(r => r.id !== row.id));
+                              }}
+                              className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200
+                                       text-red-500/70 hover:text-red-500/90 rounded-full -mr-3 -mt-1
+                                       hover:bg-red-500/10 w-3 h-3 flex items-center justify-center"
+                            >
+                              <svg className="w-2 h-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -743,6 +1080,22 @@ const DropZone: React.FC<DropZoneProps> = ({ x, y, onDrop, gridSize, isOccupied 
       if (item && item.id) {
         onDrop(item.id, { x, y });
       }
+  const [{ isOver, canDrop }, drop] = useDrop<DragItem, { x: number; y: number }, { isOver: boolean; canDrop: boolean }>({
+    accept: 'section',
+    canDrop: (item, monitor) => {
+      // Don't allow dropping in occupied spaces
+      if (isOccupied) return false;
+      
+      // Don't allow dropping in the middle column (aisle)
+      if (x === 2) return false;
+      
+      // Allow dropping only in valid columns (0,1 or 3,4)
+      return x <= 1 || (x >= 3 && x <= 4);
+    },
+    drop: (item) => {
+      onDrop(item.id, { x, y });
+      return { x, y };
+
     },
     collect: monitor => ({
       isOver: !!monitor.isOver(),
@@ -756,12 +1109,22 @@ const DropZone: React.FC<DropZoneProps> = ({ x, y, onDrop, gridSize, isOccupied 
       drop(ref);
     }
   }, [drop]);
+  const dropRef = useRef<HTMLDivElement>(null);
+  drop(dropRef);
 
   return (
     <div
-      ref={ref}
-      className={`w-full h-full rounded-xl transition-colors duration-200 ${
-        isOver && canDrop ? 'bg-gray-100/10' : ''
+      ref={dropRef}
+      data-testid={`dropzone-${x}-${y}`}
+      style={{
+        width: `${gridSize}px`,
+        height: `${gridSize}px`,
+        position: 'absolute',
+        pointerEvents: 'all'
+      }}
+      className={`rounded-xl transition-colors duration-200 ${
+        isOver && canDrop ? 'bg-gray-100/10' : 
+        canDrop ? 'bg-gray-100/5' : ''
       }`}
     />
   );
