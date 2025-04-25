@@ -57,7 +57,7 @@ export default function Home() {
   const [newSectionsCount, setNewSectionsCount] = useState(1);
   const [addingSections, setAddingSections] = useState(false);
   const [colorBlindMode, setColorBlindMode] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null }>({ type: null });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'indoor' | 'outdoor' | null; letter?: string }>({ type: null });
   const [showFinalConfirm, setShowFinalConfirm] = useState(false);
   const [warehousesToDelete, setWarehousesToDelete] = useState<Set<string>>(new Set());
   const [undoTimeout, setUndoTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -79,6 +79,7 @@ export default function Home() {
     removeSection,
     sectionPositions,
     createWarehouse,
+    addSections,
   } = warehouseData;
 
   const { theme, setTheme } = useTheme()
@@ -112,7 +113,7 @@ export default function Home() {
     
     setAddingSections(true);
     try {
-      // Add sections logic here
+      await addSections(selectedWarehouse, newSectionsCount);
       setShowAddSectionsModal(false);
       setNewSectionsCount(1);
     } catch (error) {
@@ -345,7 +346,7 @@ export default function Home() {
                             <>
                               <text
                                 x={viewBox.cx}
-                                y={viewBox.cy - 10}
+                                y={(viewBox.cy ?? 0) - 10}
                                 textAnchor="middle"
                                 dominantBaseline="central"
                                 className="fill-gray-900 dark:fill-white"
@@ -355,7 +356,7 @@ export default function Home() {
                               </text>
                               <text
                                 x={viewBox.cx}
-                                y={viewBox.cy + 15}
+                                y={(viewBox.cy ?? 0) + 15}
                                 textAnchor="middle"
                                 className="fill-gray-800 dark:fill-gray-200"
                                 style={{ fontSize: '14px', fontWeight: '500' }}
