@@ -27,6 +27,11 @@ interface RowLabel {
   label: string;
 }
 
+interface RowNumber {
+  id: number;
+  value: string;
+}
+
 interface DraggableSectionProps {
   section: SectionState;
   onMove: (id: string, position: Position) => void;
@@ -49,10 +54,7 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
   gridSize,
   colorBlindMode,
   isMobile,
-  middleColumnIndex,
-  rowGap,
-  columnGap,
-  aisleWidth
+  middleColumnIndex
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   
@@ -70,16 +72,18 @@ const DraggableSection: React.FC<DraggableSectionProps> = ({
 
   drag(ref);
 
+  const sectionSize = gridSize - 6; // Make sections slightly smaller
+
   return (
     <div
       ref={ref}
       data-testid={`section-${section.id}`}
       className={`absolute cursor-move group transition-all duration-300 ${isDragging ? 'z-50' : 'z-10'}`}
       style={{
-        left: `${section.position.x * gridSize}px`,
-        top: `${section.position.y * (gridSize + rowGap)}px`,
-        width: `${gridSize}px`,
-        height: `${gridSize}px`,
+        left: `${(section.position.x * gridSize) + 3}px`, // Center the smaller section
+        top: `${section.position.y * gridSize}px`,
+        width: `${sectionSize}px`,
+        height: `${sectionSize}px`,
         opacity: isDragging ? 0.7 : 1,
         transform: isDragging ? 'scale(1.05)' : 'scale(1)',
       }}
@@ -196,6 +200,13 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
 
   const [sectionStates, setSectionStates] = useState<SectionState[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const [rowNumbers, setRowNumbers] = useState<RowNumber[]>(() => 
+    Array.from({ length: gridHeight }, (_, index) => ({
+      id: index,
+      value: (index + 1).toString()
+    }))
+  );
+  const [editingRowId, setEditingRowId] = useState<number | null>(null);
 
   const backend = isMobile ? TouchBackend : HTML5Backend;
 
@@ -486,6 +497,20 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     borderRadius: '8px',
   };
 
+  // Add handler for number editing
+  const handleNumberEdit = (id: number, newValue: string) => {
+    setRowNumbers(prev => 
+      prev.map(row => 
+        row.id === id ? { ...row, value: newValue } : row
+      )
+    );
+  };
+
+  // Add handler for finishing edit
+  const handleEditComplete = () => {
+    setEditingRowId(null);
+  };
+
   return (
     <div className="relative flex flex-col min-h-screen">
       {/* Header */}
@@ -493,17 +518,34 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         <div className="w-full max-w-lg mx-auto px-4 pt-4">
           {currentWarehouse && (
             <div className="bg-gradient-to-r from-blue-600/10 to-cyan-500/10 backdrop-blur-sm rounded-lg border border-white/5 overflow-hidden">
-              <div className="flex items-center justify-between p-2">
-                <h2 className="text-white/90 text-sm font-medium">{currentWarehouse}</h2>
-                {onClose && (
-                  <button
-                    onClick={onClose}
-                    className="p-1 hover:bg-white/5 rounded-md transition-colors"
-                  >
-                    <svg className="w-4 h-4 text-white/70" viewBox="0 0 24 24">
-                      <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-                    </svg>
-                  </button>
+              <div className="flex flex-col">
+                <div className="flex items-center justify-between p-2">
+                  <h2 className="text-white/90 text-sm font-medium">{currentWarehouse}</h2>
+                  {onClose && (
+                    <button
+                      onClick={onClose}
+                      className="p-1 hover:bg-white/5 rounded-md transition-colors"
+                    >
+                      <svg className="w-4 h-4 text-white/70" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {onAddSections && (
+                  <div className="px-2 pb-2">
+                    <button 
+                      onClick={onAddSections}
+                      className="w-full px-4 py-2 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 text-white rounded-lg 
+                               hover:from-blue-600/90 hover:to-cyan-500/90 transition-all duration-300 shadow-lg 
+                               hover:shadow-xl flex items-center justify-center gap-2 backdrop-blur-sm border border-white/10"
+                    >
+                      <svg className="w-4 h-4" viewBox="0 0 24 24">
+                        <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                      </svg>
+                      <span className="text-sm font-medium">Add Section</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -512,7 +554,7 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       </div>
 
       {/* Main Grid - Skewed and Centered */}
-      <div className="flex-1 flex items-center justify-center transform -translate-x-2">
+      <div className="flex-1 flex items-center justify-center transform -translate-x-2 mt-32">
         <DndProvider backend={backend}>
           <div className="relative p-4 transform skew-x-1">
             <div
@@ -574,10 +616,45 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
                   transform: 'translateZ(2px)'
                 }}
               >
-                <div className="flex items-center justify-center h-full">
-                  <span className="text-blue-400/40 font-medium tracking-widest rotate-90 transform text-[8px]">
-                    ·
-                  </span>
+                <div className="flex items-center justify-center h-full relative">
+                  {/* Row Numbers */}
+                  <div className="absolute top-0 left-0 w-full h-full">
+                    {rowNumbers.map((row) => (
+                      <div
+                        key={`row-number-${row.id}`}
+                        className="absolute flex items-center justify-center w-full"
+                        style={{
+                          top: `${row.id * (gridSize + rowGap) + (gridSize / 2)}px`,
+                          transform: 'translateY(-50%)'
+                        }}
+                      >
+                        {editingRowId === row.id ? (
+                          <input
+                            type="text"
+                            value={row.value}
+                            onChange={(e) => handleNumberEdit(row.id, e.target.value)}
+                            onBlur={handleEditComplete}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleEditComplete();
+                              if (e.key === 'Escape') {
+                                handleNumberEdit(row.id, (row.id + 1).toString());
+                                handleEditComplete();
+                              }
+                            }}
+                            className="w-6 h-6 bg-transparent text-white/50 text-sm font-medium text-center outline-none border border-white/20 rounded"
+                            autoFocus
+                          />
+                        ) : (
+                          <span 
+                            className="text-white/50 text-sm font-medium cursor-pointer hover:text-white/70 transition-colors"
+                            onClick={() => setEditingRowId(row.id)}
+                          >
+                            {row.value}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -626,23 +703,6 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
           </div>
         </DndProvider>
       </div>
-
-      {/* Footer Button */}
-      {onAddSections && (
-        <div className="absolute bottom-0 left-0 right-0 pb-4 flex justify-center">
-          <button 
-            onClick={onAddSections}
-            className="px-4 py-2 bg-gradient-to-r from-blue-600/80 to-cyan-500/80 text-white rounded-lg 
-                     hover:from-blue-600/90 hover:to-cyan-500/90 transition-all duration-300 shadow-lg 
-                     hover:shadow-xl flex items-center gap-2 backdrop-blur-sm border border-white/10"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-            </svg>
-            <span className="text-sm font-medium">Add Section</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 };
