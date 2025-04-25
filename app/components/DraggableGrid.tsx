@@ -217,15 +217,25 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         const savedPositions = localStorage.getItem('sectionPositions');
         const positions = savedPositions ? JSON.parse(savedPositions) : {};
         
-        const initialStates = sections.map((section) => {
+        const initialStates: SectionState[] = [];
+        
+        // Process sections one by one to properly track occupied positions
+        for (const section of sections) {
           const savedPosition = positions[section.key];
-          return {
+          const position = savedPosition || findNextAvailablePosition(
+            initialStates,
+            middleColumnIndex,
+            gridWidth,
+            gridHeight
+          );
+          
+          initialStates.push({
             id: section.key,
-            position: savedPosition || findNextAvailablePosition([], middleColumnIndex, gridWidth, gridHeight),
+            position,
             status: section.status,
             number: section.sectionNumber
-          };
-        });
+          });
+        }
         
         setSectionStates(initialStates);
         setInitialized(true);
@@ -511,6 +521,16 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
     setEditingRowId(null);
   };
 
+  // Add cleanup for drag operations
+  useEffect(() => {
+    return () => {
+      // Cleanup any ongoing drag operations when component unmounts
+      if (draggedSectionId) {
+        setDraggedSectionId(null);
+      }
+    };
+  }, [draggedSectionId]);
+
   return (
     <div className="relative flex flex-col min-h-screen">
       {/* Header */}
@@ -554,154 +574,152 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
       </div>
 
       {/* Main Grid - Skewed and Centered */}
-      <div className="flex-1 flex items-center justify-center transform -translate-x-2 mt-32">
-        <DndProvider backend={backend}>
-          <div className="relative p-4 transform skew-x-1">
+      <div className="flex-1 flex items-center justify-center transform -translate-x-2 mt-32 z-0">
+        <div className="relative p-4 transform skew-x-1">
+          <div
+            style={{
+              width: `${(4 * gridSize) + (3 * columnGap) + aisleWidth}px`,
+              height: `${(10 * gridSize) + (9 * rowGap)}px`,
+              position: 'relative',
+              transform: 'perspective(1000px) rotateY(2deg)',
+              transformStyle: 'preserve-3d'
+            }}
+          >
+            {/* Drop zones */}
+            {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
+              const x = index % gridWidth;
+              const y = Math.floor(index / gridWidth);
+              
+              if (x === middleColumnIndex) return null;
+              
+              const xPosition = x < middleColumnIndex
+                ? x * (gridSize + columnGap)
+                : (x - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
+              
+              const yPosition = y * (gridSize + rowGap);
+              
+              return (
+                <div
+                  key={`cell-${x}-${y}`}
+                  className="absolute transition-all duration-200"
+                  style={{
+                    left: `${xPosition}px`,
+                    top: `${yPosition}px`,
+                    width: `${gridSize}px`,
+                    height: `${gridSize}px`,
+                    transform: 'translateZ(0)'
+                  }}
+                >
+                  <DropZone
+                    x={x}
+                    y={y}
+                    onDrop={handleDrop}
+                    gridSize={gridSize}
+                    isOccupied={sectionStates.some(
+                      s => s.position.x === x && s.position.y === y
+                    )}
+                  />
+                </div>
+              );
+            })}
+
+            {/* Aisle */}
             <div
+              className="absolute backdrop-blur-sm"
               style={{
-                width: `${(4 * gridSize) + (3 * columnGap) + aisleWidth}px`,
-                height: `${(10 * gridSize) + (9 * rowGap)}px`,
-                position: 'relative',
-                transform: 'perspective(1000px) rotateY(2deg)',
-                transformStyle: 'preserve-3d'
+                left: `${2 * (gridSize + columnGap)}px`,
+                top: 0,
+                width: `${aisleWidth}px`,
+                height: '100%',
+                zIndex: 5,
+                transform: 'translateZ(2px)'
               }}
             >
-              {/* Drop zones */}
-              {Array.from({ length: gridWidth * gridHeight }).map((_, index) => {
-                const x = index % gridWidth;
-                const y = Math.floor(index / gridWidth);
-                
-                if (x === middleColumnIndex) return null;
-                
-                const xPosition = x < middleColumnIndex
-                  ? x * (gridSize + columnGap)
-                  : (x - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
-                
-                const yPosition = y * (gridSize + rowGap);
-                
-                return (
-                  <div
-                    key={`cell-${x}-${y}`}
-                    className="absolute transition-all duration-200"
-                    style={{
-                      left: `${xPosition}px`,
-                      top: `${yPosition}px`,
-                      width: `${gridSize}px`,
-                      height: `${gridSize}px`,
-                      transform: 'translateZ(0)'
-                    }}
-                  >
-                    <DropZone
-                      x={x}
-                      y={y}
-                      onDrop={handleDrop}
-                      gridSize={gridSize}
-                      isOccupied={sectionStates.some(
-                        s => s.position.x === x && s.position.y === y
+              <div className="flex items-center justify-center h-full relative">
+                {/* Row Numbers */}
+                <div className="absolute top-0 left-0 w-full h-full">
+                  {rowNumbers.map((row) => (
+                    <div
+                      key={`row-number-${row.id}`}
+                      className="absolute flex items-center justify-center w-full"
+                      style={{
+                        top: `${row.id * (gridSize + rowGap) + (gridSize / 2)}px`,
+                        transform: 'translateY(-50%)'
+                      }}
+                    >
+                      {editingRowId === row.id ? (
+                        <input
+                          type="text"
+                          value={row.value}
+                          onChange={(e) => handleNumberEdit(row.id, e.target.value)}
+                          onBlur={handleEditComplete}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') handleEditComplete();
+                            if (e.key === 'Escape') {
+                              handleNumberEdit(row.id, (row.id + 1).toString());
+                              handleEditComplete();
+                            }
+                          }}
+                          className="w-6 h-6 bg-transparent text-white/50 text-sm font-medium text-center outline-none border border-white/20 rounded"
+                          autoFocus
+                        />
+                      ) : (
+                        <span 
+                          className="text-white/50 text-sm font-medium cursor-pointer hover:text-white/70 transition-colors"
+                          onClick={() => setEditingRowId(row.id)}
+                        >
+                          {row.value}
+                        </span>
                       )}
-                    />
-                  </div>
-                );
-              })}
-
-              {/* Aisle */}
-              <div
-                className="absolute backdrop-blur-sm"
-                style={{
-                  left: `${2 * (gridSize + columnGap)}px`,
-                  top: 0,
-                  width: `${aisleWidth}px`,
-                  height: '100%',
-                  zIndex: 5,
-                  transform: 'translateZ(2px)'
-                }}
-              >
-                <div className="flex items-center justify-center h-full relative">
-                  {/* Row Numbers */}
-                  <div className="absolute top-0 left-0 w-full h-full">
-                    {rowNumbers.map((row) => (
-                      <div
-                        key={`row-number-${row.id}`}
-                        className="absolute flex items-center justify-center w-full"
-                        style={{
-                          top: `${row.id * (gridSize + rowGap) + (gridSize / 2)}px`,
-                          transform: 'translateY(-50%)'
-                        }}
-                      >
-                        {editingRowId === row.id ? (
-                          <input
-                            type="text"
-                            value={row.value}
-                            onChange={(e) => handleNumberEdit(row.id, e.target.value)}
-                            onBlur={handleEditComplete}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') handleEditComplete();
-                              if (e.key === 'Escape') {
-                                handleNumberEdit(row.id, (row.id + 1).toString());
-                                handleEditComplete();
-                              }
-                            }}
-                            className="w-6 h-6 bg-transparent text-white/50 text-sm font-medium text-center outline-none border border-white/20 rounded"
-                            autoFocus
-                          />
-                        ) : (
-                          <span 
-                            className="text-white/50 text-sm font-medium cursor-pointer hover:text-white/70 transition-colors"
-                            onClick={() => setEditingRowId(row.id)}
-                          >
-                            {row.value}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Sections */}
-              {sectionStates.map((section) => {
-                const isLeftSide = section.position.x < middleColumnIndex;
-                const adjustedX = isValidColumn(section.position.x) 
-                  ? section.position.x 
-                  : isLeftSide ? 1 : 3;
-                
-                const xPosition = adjustedX < middleColumnIndex
-                  ? adjustedX * (gridSize + columnGap)
-                  : (adjustedX - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
-                
-                const yPosition = section.position.y * (gridSize + rowGap);
-                
-                return (
-                  <DraggableSection
-                    key={`section-${section.id}`}
-                    section={{
-                      ...section,
-                      position: {
-                        x: adjustedX,
-                        y: section.position.y
-                      }
-                    }}
-                    onMove={(id, position) => {
-                      const newX = position.x < middleColumnIndex
-                        ? Math.min(position.x, 1)
-                        : Math.max(3, 4);
-                      handleDrop(id, { ...position, x: newX });
-                    }}
-                    onStatusChange={handleStatusChange}
-                    onDelete={handleDelete}
-                    gridSize={gridSize}
-                    colorBlindMode={colorBlindMode}
-                    isMobile={isMobile}
-                    middleColumnIndex={middleColumnIndex}
-                    rowGap={rowGap}
-                    columnGap={columnGap}
-                    aisleWidth={aisleWidth}
-                  />
-                );
-              })}
             </div>
+
+            {/* Sections */}
+            {sectionStates.map((section) => {
+              const isLeftSide = section.position.x < middleColumnIndex;
+              const adjustedX = isValidColumn(section.position.x) 
+                ? section.position.x 
+                : isLeftSide ? 1 : 3;
+              
+              const xPosition = adjustedX < middleColumnIndex
+                ? adjustedX * (gridSize + columnGap)
+                : (adjustedX - 1) * (gridSize + columnGap) + aisleWidth + gridSize;
+              
+              const yPosition = section.position.y * (gridSize + rowGap);
+              
+              return (
+                <DraggableSection
+                  key={`section-${section.id}`}
+                  section={{
+                    ...section,
+                    position: {
+                      x: adjustedX,
+                      y: section.position.y
+                    }
+                  }}
+                  onMove={(id, position) => {
+                    const newX = position.x < middleColumnIndex
+                      ? Math.min(position.x, 1)
+                      : Math.max(3, 4);
+                    handleDrop(id, { ...position, x: newX });
+                  }}
+                  onStatusChange={handleStatusChange}
+                  onDelete={handleDelete}
+                  gridSize={gridSize}
+                  colorBlindMode={colorBlindMode}
+                  isMobile={isMobile}
+                  middleColumnIndex={middleColumnIndex}
+                  rowGap={rowGap}
+                  columnGap={columnGap}
+                  aisleWidth={aisleWidth}
+                />
+              );
+            })}
           </div>
-        </DndProvider>
+        </div>
       </div>
     </div>
   );
@@ -717,20 +735,27 @@ interface DropZoneProps {
 
 const DropZone: React.FC<DropZoneProps> = ({ x, y, onDrop, gridSize, isOccupied }) => {
   const ref = useRef<HTMLDivElement>(null);
-  const [{ isOver, canDrop }, drop] = useDrop({
+  
+  const [{ isOver, canDrop }, drop] = useDrop(() => ({
     accept: 'section',
     canDrop: () => !isOccupied,
     drop: (item: { id: string }) => {
-      onDrop(item.id, { x, y });
+      if (item && item.id) {
+        onDrop(item.id, { x, y });
+      }
     },
     collect: monitor => ({
-      isOver: monitor.isOver(),
-      canDrop: monitor.canDrop()
+      isOver: !!monitor.isOver(),
+      canDrop: !!monitor.canDrop()
     })
-  });
+  }), [x, y, isOccupied]);
 
-  // Apply the drop ref to our ref
-  drop(ref);
+  // Combine refs
+  useEffect(() => {
+    if (ref.current) {
+      drop(ref);
+    }
+  }, [drop]);
 
   return (
     <div
