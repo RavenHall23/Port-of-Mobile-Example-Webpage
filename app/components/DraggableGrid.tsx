@@ -110,6 +110,7 @@ interface DraggableGridProps {
   onSectionPositionUpdate: (warehouseLetter: string, sectionNumber: number, position: Position) => Promise<boolean>;
   currentWarehouse?: string;
   onAddSections?: () => void;
+  onClose?: () => void;
   colorBlindMode?: boolean;
 }
 
@@ -165,7 +166,8 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
   onSectionPositionUpdate,
   currentWarehouse,
   onAddSections,
-  colorBlindMode = false,
+  onClose,
+  colorBlindMode = false
 }) => {
   const [gridSize, setGridSize] = useState(100);
   const [gridWidth, setGridWidth] = useState(7);
@@ -465,11 +467,32 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
         {/* Current Warehouse Label */}
         {currentWarehouse && (
           <div className="p-4 sm:p-5 bg-gradient-to-r from-indigo-600/90 via-blue-500/90 to-cyan-400/90 backdrop-blur-sm rounded-xl shadow-lg transform transition-all duration-300 hover:shadow-xl mx-4 sm:mx-0 max-w-[280px] sm:max-w-none mx-auto border border-white/20">
-            <div className="flex items-center justify-center">
-              <div className="flex flex-col items-center">
-                <span className="text-white/80 font-light text-xs sm:text-sm uppercase tracking-wider mb-1">Current Warehouse</span>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col items-center flex-grow">
+                <span className="text-white/80 font-light text-xs sm:text-sm uppercase tracking-wider mb-1">Selected Space:</span>
                 <span className="text-white font-bold text-xl sm:text-3xl text-center">{currentWarehouse}</span>
               </div>
+              {/* Close button */}
+              <button
+                onClick={onClose}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                aria-label="Close warehouse view"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-white/70 hover:text-white"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
             </div>
           </div>
         )}
@@ -480,9 +503,23 @@ export const DraggableGrid: React.FC<DraggableGridProps> = ({
             <div className="flex items-center justify-center w-full sm:w-auto max-w-[280px] sm:max-w-none">
               <button 
                 onClick={onAddSections}
-                className="px-4 py-2 bg-emerald-500/90 text-white hover:bg-emerald-600/90 transition-all duration-300 rounded-lg w-full sm:w-auto flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm"
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 dark:from-blue-500 dark:to-cyan-400 text-white rounded-xl hover:from-blue-700 hover:to-cyan-600 transition-all duration-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                 title="Add sections"
               >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-5 w-5" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" 
+                  />
+                </svg>
                 <span>Add Sections</span>
               </button>
             </div>
