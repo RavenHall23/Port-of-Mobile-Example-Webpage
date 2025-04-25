@@ -29,6 +29,12 @@ export function WarehouseItem({
       : 'text-emerald-600 dark:text-emerald-400'
   }
 
+  const statusColors = {
+  red: { color: 'bg-red-500' },
+  green: { color: 'bg-green-500' }
+};
+
+
   const getRingColor = (percentage: number) => {
     return percentage === 100
       ? 'ring-rose-500/30 dark:ring-rose-400/30'
